@@ -9,7 +9,11 @@ export default defineConfig({
     globals: true,
     root: './',
     environment: 'node',
-    include: ['src/**/*.spec.ts', 'test/architecture/**/*.spec.ts'],
+    include: [
+      'src/**/*.spec.ts',
+      'test/architecture/**/*.spec.ts',
+      'test/sync-protocol/**/*.spec.ts',
+    ],
     fileParallelism: false,
     coverage: {
       provider: 'v8',
