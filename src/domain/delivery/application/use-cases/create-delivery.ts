@@ -64,10 +64,14 @@ export async function buildItems(
 ): Promise<
   Either<ResourceNotFoundError | InvalidQuantityError, DeliveryItem[]>
 > {
+  const productIds = items.map((item) => item.productId)
+  const foundProducts = await products.findManyByIds(productIds)
+  const productMap = new Map(foundProducts.map((p) => [p.id.toString(), p]))
+
   const built: DeliveryItem[] = []
 
   for (const item of items) {
-    const product = await products.findById(item.productId)
+    const product = productMap.get(item.productId)
 
     if (!product) {
       return left(new ResourceNotFoundError())

@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { ResourceNotFoundError } from '@/core/errors/resource-not-found-error'
 import { DomainEvents } from '@/core/events/domain-events'
 import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
 import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
+import { InvalidCancelReasonError } from '@/domain/delivery/application/use-cases/errors/invalid-cancel-reason-error'
 import { UpdateDeliveryUseCase } from '@/domain/delivery/application/use-cases/update-delivery'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
@@ -120,5 +122,50 @@ describe('UpdateDeliveryUseCase', () => {
     })
 
     expect(result.value).toBeInstanceOf(DeliveryNotFoundError)
+  })
+
+  it('troca itens e dados do cliente na mesma chamada', async () => {
+    const delivery = await makeDelivery()
+
+    const result = await sut.execute({
+      deliveryId: delivery.id.toString(),
+      items: [{ productId: productId.toString(), quantity: 2 }],
+      customer: {
+        name: 'João',
+        phone: '11988888888',
+        address: 'Rua B, 200',
+      },
+    })
+
+    expect(result.isRight()).toBe(true)
+    expect(deliveries.items[0].totalCents).toBe(3980)
+    expect(deliveries.items[0].customer.name).toBe('João')
+    expect(deliveries.items[0].customer.address).toBe('Rua B, 200')
+  })
+
+  it('recusa cancelReason vazio', async () => {
+    const delivery = await makeDelivery()
+
+    const result = await sut.execute({
+      deliveryId: delivery.id.toString(),
+      cancelReason: '',
+    })
+
+    expect(result.value).toBeInstanceOf(InvalidCancelReasonError)
+  })
+
+  it('recusa produto ausente em lote com múltiplos itens', async () => {
+    const delivery = await makeDelivery()
+    const unknownProductId = new UniqueEntityID().toString()
+
+    const result = await sut.execute({
+      deliveryId: delivery.id.toString(),
+      items: [
+        { productId: productId.toString(), quantity: 1 },
+        { productId: unknownProductId, quantity: 1 },
+      ],
+    })
+
+    expect(result.value).toBeInstanceOf(ResourceNotFoundError)
   })
 })

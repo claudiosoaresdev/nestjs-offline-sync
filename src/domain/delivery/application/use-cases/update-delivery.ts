@@ -11,6 +11,7 @@ import {
 } from '@/domain/delivery/application/use-cases/create-delivery'
 import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
 import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
+import { InvalidCancelReasonError } from '@/domain/delivery/application/use-cases/errors/invalid-cancel-reason-error'
 import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
 import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/errors/invalid-status-transition-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
@@ -29,7 +30,8 @@ export type UpdateDeliveryUseCaseResponse = Either<
   | DeliveryAlreadyFinalizedError
   | InvalidStatusTransitionError
   | ResourceNotFoundError
-  | InvalidQuantityError,
+  | InvalidQuantityError
+  | InvalidCancelReasonError,
   { delivery: Delivery }
 >
 
@@ -52,6 +54,11 @@ export class UpdateDeliveryUseCase {
     if (!delivery) {
       return left(new DeliveryNotFoundError())
     }
+
+    // All mutations below only fail by isFinal status, checked above at findById.
+    // If a mutation passes, subsequent ones won't fail, preventing orphaned domain events
+    // without a corresponding save. Future mutations that fail for other reasons must
+    // ensure domain events don't leak to the static registry without persisting.
 
     if (items) {
       const built = await buildItems(this.products, items)
@@ -83,8 +90,14 @@ export class UpdateDeliveryUseCase {
       }
     }
 
-    if (cancelReason) {
-      const cancelled = delivery.cancel(cancelReason)
+    if (cancelReason !== undefined) {
+      const trimmed = cancelReason.trim()
+
+      if (!trimmed) {
+        return left(new InvalidCancelReasonError())
+      }
+
+      const cancelled = delivery.cancel(trimmed)
 
       if (cancelled.isLeft()) {
         return left(cancelled.value)
