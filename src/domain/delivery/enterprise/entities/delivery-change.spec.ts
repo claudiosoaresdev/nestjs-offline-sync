@@ -32,4 +32,44 @@ describe('DeliveryChange', () => {
 
     expect(change.type).toBe('REMOVE')
   })
+
+  it('preserva occurredAt explícito', () => {
+    const now = new Date('2026-09-21T15:00:00Z')
+    const deliveryId = new UniqueEntityID()
+    const courierId = new UniqueEntityID()
+
+    const change = DeliveryChange.create({
+      version: 9,
+      type: 'UPSERT',
+      deliveryId,
+      courierId,
+      occurredAt: now,
+    })
+
+    expect(change.occurredAt).toEqual(now)
+  })
+
+  it('duas mudanças com mesmos dados são iguais por valor', () => {
+    const deliveryId = new UniqueEntityID()
+    const courierId = new UniqueEntityID()
+    const occurredAt = new Date('2026-09-21T15:00:00Z')
+
+    const change1 = DeliveryChange.create({
+      version: 10,
+      type: 'UPSERT',
+      deliveryId,
+      courierId,
+      occurredAt,
+    })
+
+    const change2 = DeliveryChange.create({
+      version: 10,
+      type: 'UPSERT',
+      deliveryId,
+      courierId,
+      occurredAt,
+    })
+
+    expect(change1.equals(change2)).toBe(true)
+  })
 })

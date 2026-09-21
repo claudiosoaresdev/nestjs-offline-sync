@@ -1,5 +1,5 @@
-import { Entity } from '@/core/entities/entity'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
+import { ValueObject } from '@/core/entities/value-object'
 import { Optional } from '@/core/types/optional'
 
 export type DeliveryChangeType = 'UPSERT' | 'REMOVE'
@@ -12,7 +12,11 @@ export interface DeliveryChangeProps {
   occurredAt: Date
 }
 
-export class DeliveryChange extends Entity<DeliveryChangeProps> {
+export class DeliveryChange extends ValueObject<DeliveryChangeProps> {
+  private constructor(props: DeliveryChangeProps) {
+    super(props)
+  }
+
   get version(): number {
     return this.props.version
   }
@@ -35,11 +39,10 @@ export class DeliveryChange extends Entity<DeliveryChangeProps> {
 
   static create(
     props: Optional<DeliveryChangeProps, 'occurredAt'>,
-    id?: UniqueEntityID,
   ): DeliveryChange {
-    return new DeliveryChange(
-      { ...props, occurredAt: props.occurredAt ?? new Date() },
-      id,
-    )
+    return new DeliveryChange({
+      ...props,
+      occurredAt: props.occurredAt ?? new Date(),
+    })
   }
 }
