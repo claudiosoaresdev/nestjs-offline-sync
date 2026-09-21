@@ -85,6 +85,10 @@ export class AppendDeliveryChangeSubscriber implements EventHandler {
   }
 
   private async onAssigned(event: DeliveryAssignedEvent): Promise<void> {
+    // A ordem assume que os dois appends têm sucesso. Se o REMOVE gravar e o
+    // UPSERT falhar, a entrega fica invisível para os dois entregadores. No
+    // in-memory isso não acontece porque append não tem caminho de falha; com
+    // persistência real os dois precisam ser atômicos (transação ou outbox).
     if (event.previousCourierId) {
       await this.changes.append({
         type: 'REMOVE',

@@ -4,6 +4,7 @@ import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { DomainEvents } from '@/core/events/domain-events'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
+import { RatingScore } from '@/domain/delivery/enterprise/entities/rating-score'
 import { InMemoryDeliveriesRepository } from '@/infrastructure/database/in-memory/in-memory-deliveries-repository'
 import { InMemoryDeliveryChangesRepository } from '@/infrastructure/database/in-memory/in-memory-delivery-changes-repository'
 import { InMemorySyncStateRepository } from '@/infrastructure/database/in-memory/in-memory-sync-state-repository'
@@ -84,5 +85,43 @@ describe('AppendDeliveryChangeSubscriber', () => {
     await deliveries.save(delivery)
 
     expect(changes.items[changes.items.length - 1].type).toBe('REMOVE')
+  })
+
+  it('avaliação gera UPSERT', async () => {
+    const delivery = makeDelivery()
+    await deliveries.create(delivery)
+
+    delivery.markOutForDelivery()
+    await deliveries.save(delivery)
+
+    delivery.markDelivered('Maria', new Date())
+    await deliveries.save(delivery)
+
+    const score = RatingScore.create(5)
+    if (score.isLeft()) throw new Error('score inválido no setup')
+    delivery.rate(score.value, 'Ótimo')
+    await deliveries.save(delivery)
+
+    const last = changes.items[changes.items.length - 1]
+    expect(last.type).toBe('UPSERT')
+    expect(last.courierId.equals(courierId)).toBe(true)
+  })
+
+  it('alteração de detalhes gera UPSERT', async () => {
+    const delivery = makeDelivery()
+    await deliveries.create(delivery)
+
+    delivery.changeCustomer(
+      CustomerInfo.create({
+        name: 'João',
+        phone: '11988888888',
+        address: 'Rua B, 200',
+      }),
+    )
+    await deliveries.save(delivery)
+
+    const last = changes.items[changes.items.length - 1]
+    expect(last.type).toBe('UPSERT')
+    expect(last.courierId.equals(courierId)).toBe(true)
   })
 })
