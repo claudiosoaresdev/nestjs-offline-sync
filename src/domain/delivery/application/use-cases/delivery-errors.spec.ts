@@ -25,8 +25,11 @@ describe('erros de domínio da entrega', () => {
   })
 
   it('a transição inválida diz de onde para onde', () => {
-    expect(
-      new InvalidStatusTransitionError('DELIVERED', 'PENDING').message,
-    ).toContain('DELIVERED')
+    const error = new InvalidStatusTransitionError('DELIVERED', 'PENDING')
+
+    expect(error.message).toContain('DELIVERED')
+    expect(error.message).toContain('PENDING')
+    expect(error.from).toBe('DELIVERED')
+    expect(error.to).toBe('PENDING')
   })
 })
