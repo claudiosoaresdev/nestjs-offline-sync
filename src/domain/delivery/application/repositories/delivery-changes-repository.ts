@@ -18,6 +18,13 @@ export interface FindChangesForCourierParams {
 
 export abstract class DeliveryChangesRepository {
   abstract append(input: AppendDeliveryChangeInput): Promise<DeliveryChange>
+  /**
+   * As linhas devolvidas DEVEM vir ordenadas por `version` ascendente. Quem
+   * consome este método (compactação do lote e cálculo do cursor de
+   * paginação) depende dessa ordem — uma implementação sem `ORDER BY`
+   * devolveria estado velho na compactação e avançaria o cursor além do que
+   * foi de fato entregue, em silêncio.
+   */
   abstract findManyForCourierSince(
     params: FindChangesForCourierParams,
   ): Promise<DeliveryChange[]>

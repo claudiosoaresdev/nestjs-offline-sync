@@ -12,6 +12,10 @@ export interface GetDeliverySnapshotUseCaseRequest {
   cursor?: string
 }
 
+// O lado esquerdo é `never`: snapshot não tem caminho de falha de negócio,
+// só devolve páginas (eventualmente vazias) da lista do courier. O Either é
+// mantido mesmo assim para uniformizar a assinatura com os demais use cases
+// — todo controller resolve `if (result.isLeft()) throw ...` do mesmo jeito.
 export type GetDeliverySnapshotUseCaseResponse = Either<
   never,
   {

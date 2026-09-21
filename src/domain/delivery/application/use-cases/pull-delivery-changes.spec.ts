@@ -10,6 +10,15 @@ import { InMemoryDeliveryChangesRepository } from '@/infrastructure/database/in-
 import { InMemorySyncStateRepository } from '@/infrastructure/database/in-memory/in-memory-sync-state-repository'
 import { AppendDeliveryChangeSubscriber } from '@/infrastructure/events/append-delivery-change.subscriber'
 
+/** Duplo de teste: piso de retenção do log maior que zero, para exercitar o
+ * branch de resync por cursor velho demais (código morto no in-memory real,
+ * que nunca poda o log). */
+class DeliveryChangesRepositoryWithFloor extends InMemoryDeliveryChangesRepository {
+  minVersion(): Promise<number> {
+    return Promise.resolve(3)
+  }
+}
+
 let deliveries: InMemoryDeliveriesRepository
 let changes: InMemoryDeliveryChangesRepository
 let syncState: InMemorySyncStateRepository
@@ -142,6 +151,77 @@ describe('PullDeliveryChangesUseCase', () => {
       courierId: courierId.toString(),
       sinceVersion: 0,
       limit: 10,
+    })
+
+    if (result.isLeft()) throw new Error('pull falhou')
+
+    expect(result.value.changes).toHaveLength(1)
+    expect(result.value.changes[0].type).toBe('REMOVE')
+  })
+
+  it('pede resync quando o cursor do cliente está abaixo do piso de retenção do log', async () => {
+    const localSyncState = new InMemorySyncStateRepository()
+    const localChanges = new DeliveryChangesRepositoryWithFloor(localSyncState)
+    const localDeliveries = new InMemoryDeliveriesRepository()
+
+    new AppendDeliveryChangeSubscriber(localChanges)
+
+    const localSut = new PullDeliveryChangesUseCase(
+      localChanges,
+      localDeliveries,
+      localSyncState,
+    )
+
+    await localDeliveries.create(makeDelivery())
+
+    const result = await localSut.execute({
+      courierId: courierId.toString(),
+      sinceVersion: 1,
+      limit: 10,
+    })
+
+    if (result.isLeft()) throw new Error('pull falhou')
+
+    expect(result.value.resyncRequired).toBe(true)
+    expect(result.value.changes).toHaveLength(0)
+  })
+
+  it('hasMore continua verdadeiro mesmo quando a compactação encolhe bastante o lote', async () => {
+    const deliveryA = makeDelivery()
+    await deliveries.create(deliveryA)
+    await deliveries.create(makeDelivery())
+    await deliveries.create(makeDelivery())
+
+    for (let index = 0; index < 8; index += 1) {
+      deliveryA.changeItems([])
+      await deliveries.save(deliveryA)
+    }
+
+    const result = await sut.execute({
+      courierId: courierId.toString(),
+      sinceVersion: 0,
+      limit: 10,
+    })
+
+    if (result.isLeft()) throw new Error('pull falhou')
+
+    expect(result.value.hasMore).toBe(true)
+    expect(result.value.changes.length).toBeLessThan(10)
+  })
+
+  it('degrada UPSERT para REMOVE quando a entrega foi cancelada antes de ser sincronizada', async () => {
+    const delivery = makeDelivery()
+    await deliveries.create(delivery)
+
+    delivery.cancel('Cliente desistiu')
+    await deliveries.save(delivery)
+
+    // limit=1 devolve só a linha de criação (UPSERT); a linha de cancelamento
+    // (REMOVE) fica fora do lote, mas o estado atual já está CANCELLED.
+    const result = await sut.execute({
+      courierId: courierId.toString(),
+      sinceVersion: 0,
+      limit: 1,
     })
 
     if (result.isLeft()) throw new Error('pull falhou')
