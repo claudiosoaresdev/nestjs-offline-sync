@@ -3,12 +3,15 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { DomainEvents } from '@/core/events/domain-events'
 import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
+import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/delivery-not-delivered-error'
 import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/invalid-status-transition-error'
+import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/rating-already-exists-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 import { DeliveryItem } from '@/domain/delivery/enterprise/entities/delivery-item'
 import { Product } from '@/domain/delivery/enterprise/entities/product'
 import { Quantity } from '@/domain/delivery/enterprise/entities/quantity'
+import { RatingScore } from '@/domain/delivery/enterprise/entities/rating-score'
 import { DeliveryAssignedEvent } from '@/domain/delivery/enterprise/events/delivery-assigned.event'
 import { DeliveryStatusChangedEvent } from '@/domain/delivery/enterprise/events/delivery-status-changed.event'
 
@@ -171,5 +174,89 @@ describe('Delivery — criação e transições', () => {
     delivery.markDelivered('Maria', new Date())
 
     expect(delivery.revision).toBe(2)
+  })
+})
+
+describe('Delivery — detalhes e avaliação', () => {
+  beforeEach(() => {
+    DomainEvents.clearHandlers()
+    DomainEvents.clearMarkedAggregates()
+  })
+
+  it('troca os itens enquanto a entrega não terminou', () => {
+    const delivery = makeDelivery()
+
+    const result = delivery.changeItems([makeItem(), makeItem()])
+
+    expect(result.isRight()).toBe(true)
+    expect(delivery.items).toHaveLength(2)
+    expect(delivery.totalCents).toBe(3980)
+  })
+
+  it('troca os dados do cliente', () => {
+    const delivery = makeDelivery()
+
+    const result = delivery.changeCustomer(
+      CustomerInfo.create({
+        name: 'Maria',
+        phone: '11999999999',
+        address: 'Rua Nova, 500',
+      }),
+    )
+
+    expect(result.isRight()).toBe(true)
+    expect(delivery.customer.address).toBe('Rua Nova, 500')
+  })
+
+  it('recusa alterar itens de entrega finalizada', () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery()
+    delivery.markDelivered('Maria', new Date())
+
+    const result = delivery.changeItems([makeItem()])
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(DeliveryAlreadyFinalizedError)
+  })
+
+  it('avalia entrega entregue', () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery()
+    delivery.markDelivered('Maria', new Date())
+
+    const score = RatingScore.create(5)
+    if (score.isLeft()) throw new Error('score inválido no setup')
+
+    const result = delivery.rate(score.value, 'Rápido')
+
+    expect(result.isRight()).toBe(true)
+    expect(delivery.rating?.score.value).toBe(5)
+    expect(delivery.rating?.comment).toBe('Rápido')
+  })
+
+  it('recusa avaliar entrega não entregue', () => {
+    const delivery = makeDelivery()
+    const score = RatingScore.create(5)
+    if (score.isLeft()) throw new Error('score inválido no setup')
+
+    const result = delivery.rate(score.value, null)
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(DeliveryNotDeliveredError)
+  })
+
+  it('recusa avaliar duas vezes', () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery()
+    delivery.markDelivered('Maria', new Date())
+
+    const score = RatingScore.create(4)
+    if (score.isLeft()) throw new Error('score inválido no setup')
+
+    delivery.rate(score.value, null)
+    const result = delivery.rate(score.value, null)
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(RatingAlreadyExistsError)
   })
 })

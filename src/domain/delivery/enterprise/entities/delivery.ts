@@ -3,7 +3,9 @@ import { AggregateRoot } from '@/core/entities/aggregate-root'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { Optional } from '@/core/types/optional'
 import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
+import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/delivery-not-delivered-error'
 import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/invalid-status-transition-error'
+import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/rating-already-exists-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { DeliveryItem } from '@/domain/delivery/enterprise/entities/delivery-item'
 import { DeliveryStatus } from '@/domain/delivery/enterprise/entities/delivery-status'
@@ -11,6 +13,8 @@ import { RatingScore } from '@/domain/delivery/enterprise/entities/rating-score'
 import { DeliveryAssignedEvent } from '@/domain/delivery/enterprise/events/delivery-assigned.event'
 import { DeliveryCancelledEvent } from '@/domain/delivery/enterprise/events/delivery-cancelled.event'
 import { DeliveryCreatedEvent } from '@/domain/delivery/enterprise/events/delivery-created.event'
+import { DeliveryDetailsChangedEvent } from '@/domain/delivery/enterprise/events/delivery-details-changed.event'
+import { DeliveryRatedEvent } from '@/domain/delivery/enterprise/events/delivery-rated.event'
 import { DeliveryStatusChangedEvent } from '@/domain/delivery/enterprise/events/delivery-status-changed.event'
 
 export interface DeliveryRating {
@@ -179,6 +183,63 @@ export class Delivery extends AggregateRoot<DeliveryProps> {
     this.props.cancelReason = reason
     this.addDomainEvent(
       new DeliveryCancelledEvent(this.id, this.props.courierId, reason),
+    )
+
+    return right(null)
+  }
+
+  changeItems(
+    items: DeliveryItem[],
+  ): Either<DeliveryAlreadyFinalizedError, null> {
+    if (this.props.status.isFinal) {
+      return left(new DeliveryAlreadyFinalizedError())
+    }
+
+    this.props.items = items
+    this.touch()
+    this.addDomainEvent(
+      new DeliveryDetailsChangedEvent(this.id, this.props.courierId),
+    )
+
+    return right(null)
+  }
+
+  changeCustomer(
+    customer: CustomerInfo,
+  ): Either<DeliveryAlreadyFinalizedError, null> {
+    if (this.props.status.isFinal) {
+      return left(new DeliveryAlreadyFinalizedError())
+    }
+
+    if (this.props.customer.equals(customer)) {
+      return right(null)
+    }
+
+    this.props.customer = customer
+    this.touch()
+    this.addDomainEvent(
+      new DeliveryDetailsChangedEvent(this.id, this.props.courierId),
+    )
+
+    return right(null)
+  }
+
+  rate(
+    score: RatingScore,
+    comment: string | null,
+  ): Either<DeliveryNotDeliveredError | RatingAlreadyExistsError, null> {
+    if (this.props.status.value !== 'DELIVERED') {
+      return left(new DeliveryNotDeliveredError())
+    }
+
+    if (this.props.rating) {
+      return left(new RatingAlreadyExistsError())
+    }
+
+    this.props.rating = { score, comment, ratedAt: new Date() }
+    this.touch()
+    this.addDomainEvent(
+      new DeliveryRatedEvent(this.id, this.props.courierId, score.value),
     )
 
     return right(null)
