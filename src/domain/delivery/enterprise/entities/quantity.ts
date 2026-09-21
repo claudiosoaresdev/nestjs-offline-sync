@@ -1,6 +1,6 @@
 import { Either, left, right } from '@/core/either'
 import { ValueObject } from '@/core/entities/value-object'
-import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/invalid-quantity-error'
+import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
 
 interface QuantityProps {
   value: number

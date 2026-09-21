@@ -9,10 +9,10 @@ import {
   buildItems,
   DeliveryItemInput,
 } from '@/domain/delivery/application/use-cases/create-delivery'
-import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
-import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/delivery-not-found-error'
-import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/invalid-quantity-error'
-import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/invalid-status-transition-error'
+import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
+import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
+import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
+import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/errors/invalid-status-transition-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 

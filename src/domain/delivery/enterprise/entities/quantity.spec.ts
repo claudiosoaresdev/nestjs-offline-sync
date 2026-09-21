@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/invalid-quantity-error'
+import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
 import { Quantity } from '@/domain/delivery/enterprise/entities/quantity'
 
 describe('Quantity', () => {

@@ -1,6 +1,6 @@
 import { Either, left, right } from '@/core/either'
 import { ValueObject } from '@/core/entities/value-object'
-import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/invalid-rating-score-error'
+import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/errors/invalid-rating-score-error'
 
 const MIN_SCORE = 0
 const MAX_SCORE = 5

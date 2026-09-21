@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { UseCaseError } from '@/core/errors/use-case-error'
-import { CourierMismatchError } from '@/domain/delivery/application/use-cases/courier-mismatch-error'
-import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
-import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/delivery-not-delivered-error'
-import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/delivery-not-found-error'
-import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/invalid-status-transition-error'
-import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/rating-already-exists-error'
+import { CourierMismatchError } from '@/domain/delivery/application/use-cases/errors/courier-mismatch-error'
+import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
+import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/errors/delivery-not-delivered-error'
+import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
+import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/errors/invalid-status-transition-error'
+import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/errors/rating-already-exists-error'
 
 describe('erros de domínio da entrega', () => {
   it('todos implementam UseCaseError com mensagem', () => {

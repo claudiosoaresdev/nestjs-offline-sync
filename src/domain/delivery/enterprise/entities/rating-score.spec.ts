@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/invalid-rating-score-error'
+import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/errors/invalid-rating-score-error'
 import { RatingScore } from '@/domain/delivery/enterprise/entities/rating-score'
 
 describe('RatingScore', () => {
