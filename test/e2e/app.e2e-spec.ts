@@ -31,4 +31,14 @@ describe('App (e2e)', () => {
     const body = response.body as { status: string }
     expect(body.status).toBe('ok')
   })
+
+  it('GET /couriers/:courierId/deliveries/snapshot responde com a âncora de versão', async () => {
+    const response = await request(httpServer)
+      .get('/couriers/3f2504e0-4f89-11d3-9a0c-0305e82c3301/deliveries/snapshot')
+      .expect(200)
+
+    const body = response.body as { currentVersion: number; deliveries: [] }
+    expect(body.currentVersion).toBe(0)
+    expect(body.deliveries).toEqual([])
+  })
 })

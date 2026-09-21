@@ -14,6 +14,14 @@ import { DeliveryStatusChangedEvent } from '@/domain/delivery/enterprise/events/
  * Traduz evento de domínio em entrada do log de sincronização. É isto que faz
  * valer a regra de ouro do delta sync: nenhuma mudança de entrega existe sem
  * change correspondente, porque quem anuncia a mudança é o próprio agregado.
+ *
+ * ATENÇÃO: `DomainEvents.register` grava o handler num mapa estático,
+ * global ao processo (não por instância). Se este subscriber for registrado
+ * como provider em mais de um módulo, cada evento de domínio dispara DUAS
+ * (ou mais) instâncias deste handler, e cada uma grava sua própria entrada no
+ * log de changes — o mesmo evento vira duas versões distintas, corrompendo o
+ * cursor de sincronização do cliente sem lançar nenhum erro. Ele deve ser
+ * declarado como provider em exatamente um módulo (hoje, o HttpModule).
  */
 @Injectable()
 export class AppendDeliveryChangeSubscriber implements EventHandler {
