@@ -5,6 +5,8 @@ import { DeliveriesRepository } from '@/domain/delivery/application/repositories
 import { ProcessedDeliveryEventsRepository } from '@/domain/delivery/application/repositories/processed-delivery-events-repository'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 
+const UNSPECIFIED = 'Não informado'
+
 export type PushedDeliveryEventType =
   'OUT_FOR_DELIVERY' | 'FAILED_ATTEMPT' | 'DELIVERED'
 
@@ -53,24 +55,17 @@ export class PushDeliveryEventsUseCase {
     courierId,
     events,
   }: PushDeliveryEventsUseCaseRequest): Promise<PushDeliveryEventsUseCaseResponse> {
-    const resultsByEventId = new Map<string, PushDeliveryEventResult>()
+    const indexed = events.map((event, index) => ({ event, index }))
+    const results: PushDeliveryEventResult[] =
+      new Array<PushDeliveryEventResult>(events.length)
 
-    for (const event of this.order(events)) {
-      resultsByEventId.set(
-        event.clientEventId,
-        await this.applyOne(event, courierId),
-      )
+    // A resposta é indexada pela posição do evento no array original, e não
+    // pelo clientEventId: o mesmo id pode aparecer duas vezes num lote (a
+    // segunda ocorrência é DUPLICATE), e cada posição precisa do seu próprio
+    // resultado — chavear por id colapsaria as duas num único resultado.
+    for (const { event, index } of this.order(indexed)) {
+      results[index] = await this.applyOne(event, courierId)
     }
-
-    // A resposta sai na ordem em que o cliente enviou, para ele casar item a item.
-    const results = events.map(
-      (event) =>
-        resultsByEventId.get(event.clientEventId) ?? {
-          clientEventId: event.clientEventId,
-          status: 'REJECTED' as const,
-          code: 'DELIVERY_NOT_FOUND' as const,
-        },
-    )
 
     return right({ results })
   }
@@ -79,18 +74,23 @@ export class PushDeliveryEventsUseCase {
    * Eventos da mesma entrega são aplicados em ordem de relógio do dispositivo;
    * entregas diferentes mantêm a ordem de chegada no array.
    */
-  private order(events: PushedDeliveryEvent[]): PushedDeliveryEvent[] {
-    const groups = new Map<string, PushedDeliveryEvent[]>()
+  private order(
+    indexed: { event: PushedDeliveryEvent; index: number }[],
+  ): { event: PushedDeliveryEvent; index: number }[] {
+    const groups = new Map<
+      string,
+      { event: PushedDeliveryEvent; index: number }[]
+    >()
 
-    for (const event of events) {
-      const group = groups.get(event.deliveryId) ?? []
-      group.push(event)
-      groups.set(event.deliveryId, group)
+    for (const item of indexed) {
+      const group = groups.get(item.event.deliveryId) ?? []
+      group.push(item)
+      groups.set(item.event.deliveryId, group)
     }
 
     return [...groups.values()].flatMap((group) =>
       [...group].sort(
-        (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime(),
+        (a, b) => a.event.occurredAt.getTime() - b.event.occurredAt.getTime(),
       ),
     )
   }
@@ -142,6 +142,11 @@ export class PushDeliveryEventsUseCase {
       }
     }
 
+    // save + register não são atômicos aqui. Em memória não há caminho de
+    // falha entre os dois, mas com um banco real eles precisam da mesma
+    // transação: se register falhasse após o save, o reenvio não bateria
+    // mais em DUPLICATE e cairia em INVALID_STATUS_TRANSITION contra o
+    // estado já alterado.
     await this.deliveries.save(delivery)
     await this.processed.register(event.clientEventId)
 
@@ -157,12 +162,12 @@ export class PushDeliveryEventsUseCase {
         return delivery.markOutForDelivery(event.occurredAt)
       case 'FAILED_ATTEMPT':
         return delivery.registerFailedAttempt(
-          event.reason ?? 'Não informado',
+          event.reason ?? UNSPECIFIED,
           event.occurredAt,
         )
       case 'DELIVERED':
         return delivery.markDelivered(
-          event.receivedBy ?? 'Não informado',
+          event.receivedBy ?? UNSPECIFIED,
           event.occurredAt,
         )
     }

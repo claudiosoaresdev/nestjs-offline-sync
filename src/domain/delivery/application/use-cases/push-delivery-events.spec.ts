@@ -185,4 +185,69 @@ describe('PushDeliveryEventsUseCase', () => {
 
     expect(result.value.results[0].code).toBe('DELIVERY_NOT_FOUND')
   })
+
+  it('mantém resultado por posição quando o mesmo clientEventId se repete no lote', async () => {
+    const delivery = makeDelivery()
+    await deliveries.create(delivery)
+
+    const result = await sut.execute({
+      courierId: courierId.toString(),
+      events: [
+        {
+          clientEventId: 'evt-1',
+          deliveryId: delivery.id.toString(),
+          type: 'OUT_FOR_DELIVERY',
+          occurredAt: new Date('2026-09-21T12:00:00.000Z'),
+        },
+        {
+          clientEventId: 'evt-1',
+          deliveryId: delivery.id.toString(),
+          type: 'OUT_FOR_DELIVERY',
+          occurredAt: new Date('2026-09-21T12:05:00.000Z'),
+        },
+      ],
+    })
+
+    if (result.isLeft()) throw new Error('push falhou')
+
+    expect(result.value.results.map((item) => item.status)).toEqual([
+      'APPLIED',
+      'DUPLICATE',
+    ])
+    expect(deliveries.items[0].revision).toBe(1)
+  })
+
+  it('aplica FAILED_ATTEMPT sem reason usando o default', async () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery(new Date('2026-09-21T11:00:00.000Z'))
+    await deliveries.create(delivery)
+
+    const result = await sut.execute({
+      courierId: courierId.toString(),
+      events: [
+        {
+          clientEventId: 'evt-1',
+          deliveryId: delivery.id.toString(),
+          type: 'FAILED_ATTEMPT',
+          occurredAt: new Date(),
+        },
+      ],
+    })
+
+    if (result.isLeft()) throw new Error('push falhou')
+
+    expect(result.value.results[0].status).toBe('APPLIED')
+    expect(deliveries.items[0].lastFailureReason).toBe('Não informado')
+  })
+
+  it('devolve lista vazia para lote vazio', async () => {
+    const result = await sut.execute({
+      courierId: courierId.toString(),
+      events: [],
+    })
+
+    if (result.isLeft()) throw new Error('push falhou')
+
+    expect(result.value.results).toEqual([])
+  })
 })
