@@ -5,12 +5,16 @@ import type { App } from 'supertest/types'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { AppModule } from '@/app.module'
+import { DomainEvents } from '@/core/events/domain-events'
 
 describe('App (e2e)', () => {
   let app: INestApplication
   let httpServer: App
 
   beforeAll(async () => {
+    DomainEvents.clearHandlers()
+    DomainEvents.clearMarkedAggregates()
+
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile()
