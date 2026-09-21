@@ -42,15 +42,15 @@ Estas regras valem para **todos** os arquivos criados neste plano. O lint quebra
 
 **Infraestrutura** (`src/infrastructure/`)
 
-| Arquivo                                       | Responsabilidade                                             |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| `database/in-memory/in-memory-*.ts`           | Uma implementação por contrato                               |
-| `events/append-delivery-change.subscriber.ts` | Traduz evento de domínio em entrada do log                   |
-| `http/controllers/*.controller.ts`            | Um controller por caso de uso                                |
-| `http/presenters/delivery-presenter.ts`       | Entidade → JSON de resposta                                  |
-| `http/errors/use-case-error-to-http.ts`       | **Modificar**: registrar os erros novos                      |
-| `http/http.module.ts`                         | **Modificar**: registrar controllers, use cases e subscriber |
-| `database/database.module.ts`                 | **Modificar**: registrar os bindings de repositório          |
+| Arquivo                                             | Responsabilidade                                             |
+| --------------------------------------------------- | ------------------------------------------------------------ |
+| `database/in-memory/in-memory-*.ts`                 | Uma implementação por contrato                               |
+| `events/append-delivery-change.subscriber.ts`       | Traduz evento de domínio em entrada do log                   |
+| `http/controllers/*.controller.ts`                  | Um controller por caso de uso                                |
+| `http/presenters/delivery-presenter.ts`             | Entidade → JSON de resposta                                  |
+| `http/controllers/errors/use-case-error-to-http.ts` | **Modificar**: registrar os erros novos                      |
+| `http/http.module.ts`                               | **Modificar**: registrar controllers, use cases e subscriber |
+| `database/database.module.ts`                       | **Modificar**: registrar os bindings de repositório          |
 
 **Testes**
 
@@ -4024,9 +4024,9 @@ git commit -m "feat(delivery): add create and update delivery use cases"
 **Files:**
 
 - Create: `src/infrastructure/http/presenters/delivery-presenter.ts`
-- Modify: `src/infrastructure/http/errors/use-case-error-to-http.ts`
+- Modify: `src/infrastructure/http/controllers/errors/use-case-error-to-http.ts`
 - Test: `src/infrastructure/http/presenters/delivery-presenter.spec.ts`
-- Test: `src/infrastructure/http/errors/use-case-error-to-http.spec.ts` (já existe — adicionar casos)
+- Test: `src/infrastructure/http/controllers/errors/use-case-error-to-http.spec.ts` (já existe — adicionar casos)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -4323,7 +4323,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common'
 import { z } from 'zod'
 
 import { GetDeliverySnapshotUseCase } from '@/domain/delivery/application/use-cases/get-delivery-snapshot'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4373,7 +4373,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common'
 import { z } from 'zod'
 
 import { PullDeliveryChangesUseCase } from '@/domain/delivery/application/use-cases/pull-delivery-changes'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4428,7 +4428,7 @@ import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common'
 import { z } from 'zod'
 
 import { PushDeliveryEventsUseCase } from '@/domain/delivery/application/use-cases/push-delivery-events'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4490,7 +4490,7 @@ import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common'
 import { z } from 'zod'
 
 import { RateDeliveryUseCase } from '@/domain/delivery/application/use-cases/rate-delivery'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4533,7 +4533,7 @@ import { Body, Controller, HttpCode, Post } from '@nestjs/common'
 import { z } from 'zod'
 
 import { CreateDeliveryUseCase } from '@/domain/delivery/application/use-cases/create-delivery'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4584,7 +4584,7 @@ import { Body, Controller, Param, Patch } from '@nestjs/common'
 import { z } from 'zod'
 
 import { UpdateDeliveryUseCase } from '@/domain/delivery/application/use-cases/update-delivery'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 

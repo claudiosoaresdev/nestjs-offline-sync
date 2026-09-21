@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { NotAllowedError } from '@/core/errors/not-allowed-error'
 import { ResourceNotFoundError } from '@/core/errors/resource-not-found-error'
 import type { UseCaseError } from '@/core/errors/use-case-error'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 
 class UnknownError extends Error implements UseCaseError {
   constructor() {
