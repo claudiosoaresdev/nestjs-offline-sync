@@ -10,7 +10,14 @@ describe('Quantity', () => {
     expect(result.isRight() && result.value.value).toBe(2)
   })
 
-  it.each([0, -1, 1.5])('recusa %s', (raw) => {
+  it.each([
+    0,
+    -1,
+    1.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+  ])('recusa %s', (raw) => {
     const result = Quantity.create(raw)
 
     expect(result.isLeft()).toBe(true)

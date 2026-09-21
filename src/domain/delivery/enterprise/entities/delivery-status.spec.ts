@@ -25,6 +25,12 @@ describe('DeliveryStatus', () => {
     ).toBe(false)
   })
 
+  it('recusa transição para o próprio status', () => {
+    expect(
+      DeliveryStatus.pending().canTransitionTo(DeliveryStatus.pending()),
+    ).toBe(false)
+  })
+
   it('trata DELIVERED e CANCELLED como terminais', () => {
     expect(DeliveryStatus.delivered().isFinal).toBe(true)
     expect(DeliveryStatus.cancelled().isFinal).toBe(true)
