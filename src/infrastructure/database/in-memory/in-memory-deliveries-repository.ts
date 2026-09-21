@@ -58,9 +58,9 @@ export class InMemoryDeliveriesRepository extends DeliveriesRepository {
 
     if (index >= 0) {
       this.items[index] = delivery
-    }
 
-    DomainEvents.dispatchEventsForAggregate(delivery.id)
+      DomainEvents.dispatchEventsForAggregate(delivery.id)
+    }
 
     return Promise.resolve()
   }

@@ -58,6 +58,7 @@ export class InMemoryDeliveryChangesRepository extends DeliveryChangesRepository
     )
   }
 
+  /** O in-memory nunca descarta histórico, então o piso é sempre 0. */
   minVersion(): Promise<number> {
     return Promise.resolve(0)
   }

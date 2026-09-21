@@ -92,4 +92,30 @@ describe('InMemoryDeliveryChangesRepository', () => {
       sut.hasChangesForCourierAfter(courierId.toString(), 1),
     ).resolves.toBe(false)
   })
+
+  it('minVersion() devolve 0', async () => {
+    await sut.append({
+      type: 'UPSERT',
+      deliveryId: new UniqueEntityID(),
+      courierId,
+    })
+
+    await expect(sut.minVersion()).resolves.toBe(0)
+  })
+
+  it('sinceVersion acima da maior versão existente devolve lista vazia', async () => {
+    await sut.append({
+      type: 'UPSERT',
+      deliveryId: new UniqueEntityID(),
+      courierId,
+    })
+
+    const rows = await sut.findManyForCourierSince({
+      courierId: courierId.toString(),
+      sinceVersion: 999,
+      limit: 10,
+    })
+
+    expect(rows).toEqual([])
+  })
 })
