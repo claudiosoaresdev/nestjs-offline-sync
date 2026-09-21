@@ -13,6 +13,7 @@ import { Product } from '@/domain/delivery/enterprise/entities/product'
 import { Quantity } from '@/domain/delivery/enterprise/entities/quantity'
 import { RatingScore } from '@/domain/delivery/enterprise/entities/rating-score'
 import { DeliveryAssignedEvent } from '@/domain/delivery/enterprise/events/delivery-assigned.event'
+import { DeliveryCancelledEvent } from '@/domain/delivery/enterprise/events/delivery-cancelled.event'
 import { DeliveryStatusChangedEvent } from '@/domain/delivery/enterprise/events/delivery-status-changed.event'
 
 function makeItem(): DeliveryItem {
@@ -120,6 +121,8 @@ describe('Delivery — criação e transições', () => {
     expect(result.isRight()).toBe(true)
     expect(delivery.status.value).toBe('CANCELLED')
     expect(delivery.domainEvents).toHaveLength(2)
+    expect(delivery.domainEvents[0]).toBeInstanceOf(DeliveryStatusChangedEvent)
+    expect(delivery.domainEvents[1]).toBeInstanceOf(DeliveryCancelledEvent)
   })
 
   it('recusa cancelar entrega já entregue', () => {
@@ -174,6 +177,77 @@ describe('Delivery — criação e transições', () => {
     delivery.markDelivered('Maria', new Date())
 
     expect(delivery.revision).toBe(2)
+  })
+
+  it('recusa entregar duas vezes', () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery()
+    delivery.markDelivered('Maria', new Date())
+
+    const result = delivery.markDelivered('Outra pessoa', new Date())
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(InvalidStatusTransitionError)
+    expect(delivery.receivedBy).toBe('Maria')
+  })
+
+  it('recusa cancelar duas vezes', () => {
+    const delivery = makeDelivery()
+    delivery.cancel('Cliente desistiu')
+
+    const result = delivery.cancel('de novo')
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(InvalidStatusTransitionError)
+    expect(delivery.cancelReason).toBe('Cliente desistiu')
+  })
+
+  it('recusa registrar tentativa falha duas vezes seguidas sem sair para entrega de novo', () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery()
+    delivery.registerFailedAttempt('Ausente', new Date())
+
+    const result = delivery.registerFailedAttempt('Ausente de novo', new Date())
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(InvalidStatusTransitionError)
+    expect(delivery.attempts).toBe(1)
+    expect(delivery.lastFailureReason).toBe('Ausente')
+  })
+
+  it('recusa cancelar após entregar, avaliar e não perde a avaliação', () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery()
+    delivery.markDelivered('Maria', new Date())
+
+    const score = RatingScore.create(5)
+    if (score.isLeft()) throw new Error('score inválido no setup')
+    delivery.rate(score.value, 'Ótimo')
+
+    const result = delivery.cancel('tarde demais')
+
+    expect(result.isLeft()).toBe(true)
+    expect(result.value).toBeInstanceOf(InvalidStatusTransitionError)
+    expect(delivery.rating?.score.value).toBe(5)
+    expect(delivery.rating?.comment).toBe('Ótimo')
+  })
+
+  it('permite reatribuir entrega em trânsito, mantendo o status', () => {
+    const previous = new UniqueEntityID()
+    const next = new UniqueEntityID()
+    const delivery = makeDelivery(previous)
+    delivery.markOutForDelivery()
+    delivery.clearEvents()
+
+    const result = delivery.assignTo(next)
+
+    expect(result.isRight()).toBe(true)
+    expect(delivery.status.value).toBe('OUT_FOR_DELIVERY')
+    expect(delivery.courierId.equals(next)).toBe(true)
+
+    const event = delivery.domainEvents[0] as DeliveryAssignedEvent
+    expect(event).toBeInstanceOf(DeliveryAssignedEvent)
+    expect(event.previousCourierId?.equals(previous)).toBe(true)
   })
 })
 
@@ -258,5 +332,30 @@ describe('Delivery — detalhes e avaliação', () => {
 
     expect(result.isLeft()).toBe(true)
     expect(result.value).toBeInstanceOf(RatingAlreadyExistsError)
+  })
+
+  it('não permite mutar o estado interno via a referência devolvida por items', () => {
+    const delivery = makeDelivery()
+
+    const leaked = delivery.items as DeliveryItem[]
+    leaked.push(makeItem())
+
+    expect(delivery.items).toHaveLength(1)
+  })
+
+  it('não permite mutar o estado interno via a referência devolvida por rating', () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery()
+    delivery.markDelivered('Maria', new Date())
+
+    const score = RatingScore.create(5)
+    if (score.isLeft()) throw new Error('score inválido no setup')
+    delivery.rate(score.value, 'Rápido')
+
+    const leaked = delivery.rating
+    if (!leaked) throw new Error('rating ausente no setup')
+    leaked.comment = 'Adulterado'
+
+    expect(delivery.rating?.comment).toBe('Rápido')
   })
 })

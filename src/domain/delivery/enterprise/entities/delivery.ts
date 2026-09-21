@@ -63,7 +63,7 @@ export class Delivery extends AggregateRoot<DeliveryProps> {
   }
 
   get items(): readonly DeliveryItem[] {
-    return this.props.items
+    return [...this.props.items]
   }
 
   get status(): DeliveryStatus {
@@ -75,7 +75,7 @@ export class Delivery extends AggregateRoot<DeliveryProps> {
   }
 
   get rating(): DeliveryRating | null {
-    return this.props.rating
+    return this.props.rating ? { ...this.props.rating } : null
   }
 
   get receivedBy(): string | null {
@@ -195,7 +195,7 @@ export class Delivery extends AggregateRoot<DeliveryProps> {
       return left(new DeliveryAlreadyFinalizedError())
     }
 
-    this.props.items = items
+    this.props.items = [...items]
     this.touch()
     this.addDomainEvent(
       new DeliveryDetailsChangedEvent(this.id, this.props.courierId),
