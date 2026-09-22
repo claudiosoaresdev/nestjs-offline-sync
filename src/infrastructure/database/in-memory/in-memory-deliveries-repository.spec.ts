@@ -96,7 +96,7 @@ describe('InMemoryDeliveriesRepository', () => {
     await sut.create(second)
 
     const ordered = [first, second].sort((a, b) =>
-      a.id.toString().localeCompare(b.id.toString()),
+      a.id.toString() < b.id.toString() ? -1 : 1,
     )
 
     const rows = await sut.findManyByCourier({
@@ -109,18 +109,47 @@ describe('InMemoryDeliveriesRepository', () => {
     expect(rows[0].id.toString()).toBe(ordered[1].id.toString())
   })
 
-  it('findManyByCourier com cursor inexistente devolve lista vazia', async () => {
+  it('cancelar a entrega que serve de cursor durante a paginação não trunca o snapshot', async () => {
     const courierId = new UniqueEntityID()
 
-    await sut.create(makeDelivery(courierId))
+    const first = makeDelivery(courierId)
+    const second = makeDelivery(courierId)
+    const third = makeDelivery(courierId)
 
-    const rows = await sut.findManyByCourier({
+    await sut.create(first)
+    await sut.create(second)
+    await sut.create(third)
+
+    const ordered = [first, second, third].sort((a, b) =>
+      a.id.toString() < b.id.toString() ? -1 : 1,
+    )
+
+    const firstPage = await sut.findManyByCourier({
       courierId: courierId.toString(),
-      limit: 10,
-      cursor: new UniqueEntityID().toString(),
+      limit: 1,
     })
 
-    expect(rows).toEqual([])
+    expect(firstPage.map((item) => item.id.toString())).toEqual([
+      ordered[0].id.toString(),
+    ])
+
+    const cursor = ordered[0].id.toString()
+
+    // A entrega que serviu de cursor é cancelada enquanto o app ainda está
+    // paginando o snapshot — ela some da lista filtrada, mas o keyset não
+    // depende dela continuar lá.
+    ordered[0].cancel('cliente desistiu')
+
+    const secondPage = await sut.findManyByCourier({
+      courierId: courierId.toString(),
+      limit: 10,
+      cursor,
+    })
+
+    expect(secondPage.map((item) => item.id.toString())).toEqual([
+      ordered[1].id.toString(),
+      ordered[2].id.toString(),
+    ])
   })
 
   it('a carteira exclui entrega cancelada e mantém entregue', async () => {

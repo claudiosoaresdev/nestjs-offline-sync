@@ -24,21 +24,14 @@ export class InMemoryDeliveriesRepository extends DeliveriesRepository {
   }: FindManyByCourierParams): Promise<Delivery[]> {
     const ordered = this.activeForCourier(courierId)
 
-    if (!cursor) {
-      return Promise.resolve(ordered.slice(0, limit))
-    }
+    // Keyset: filtra por id > cursor em vez de localizar o índice do cursor
+    // na lista. Equivalente a `WHERE id > $cursor ORDER BY id` no Postgres —
+    // não depende de o cursor ainda existir na lista filtrada.
+    const rows = cursor
+      ? ordered.filter((item) => item.id.toString() > cursor)
+      : ordered
 
-    const cursorIndex = ordered.findIndex(
-      (item) => item.id.toString() === cursor,
-    )
-
-    if (cursorIndex < 0) {
-      return Promise.resolve([])
-    }
-
-    return Promise.resolve(
-      ordered.slice(cursorIndex + 1, cursorIndex + 1 + limit),
-    )
+    return Promise.resolve(rows.slice(0, limit))
   }
 
   countByCourier(courierId: string): Promise<number> {
@@ -73,6 +66,6 @@ export class InMemoryDeliveriesRepository extends DeliveriesRepository {
           item.courierId.toString() === courierId &&
           item.status.value !== 'CANCELLED',
       )
-      .sort((a, b) => a.id.toString().localeCompare(b.id.toString()))
+      .sort((a, b) => (a.id.toString() < b.id.toString() ? -1 : 1))
   }
 }

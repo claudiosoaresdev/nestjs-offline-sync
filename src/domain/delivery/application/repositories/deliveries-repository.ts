@@ -9,8 +9,12 @@ export interface FindManyByCourierParams {
 export abstract class DeliveriesRepository {
   abstract findById(id: string): Promise<Delivery | null>
   /**
-   * Cursor não encontrado devolve lista vazia — mesmo formato usado para
-   * sinalizar que não há mais páginas.
+   * Paginação por keyset: devolve entregas com `id` maior que `cursor`,
+   * ordenadas por `id` ascendente — o equivalente a
+   * `WHERE id > $cursor ORDER BY id LIMIT $limit` no Postgres. Um cursor que
+   * saiu da lista filtrada (cancelado ou reatribuído durante a paginação)
+   * não é um caso especial: a página seguinte continua normalmente a partir
+   * dele, porque a posição nunca dependeu de o cursor ainda existir.
    */
   abstract findManyByCourier(
     params: FindManyByCourierParams,
