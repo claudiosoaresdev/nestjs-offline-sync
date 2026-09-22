@@ -42,15 +42,15 @@ Estas regras valem para **todos** os arquivos criados neste plano. O lint quebra
 
 **Infraestrutura** (`src/infrastructure/`)
 
-| Arquivo                                       | Responsabilidade                                             |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| `database/in-memory/in-memory-*.ts`           | Uma implementação por contrato                               |
-| `events/append-delivery-change.subscriber.ts` | Traduz evento de domínio em entrada do log                   |
-| `http/controllers/*.controller.ts`            | Um controller por caso de uso                                |
-| `http/presenters/delivery-presenter.ts`       | Entidade → JSON de resposta                                  |
-| `http/errors/use-case-error-to-http.ts`       | **Modificar**: registrar os erros novos                      |
-| `http/http.module.ts`                         | **Modificar**: registrar controllers, use cases e subscriber |
-| `database/database.module.ts`                 | **Modificar**: registrar os bindings de repositório          |
+| Arquivo                                             | Responsabilidade                                             |
+| --------------------------------------------------- | ------------------------------------------------------------ |
+| `database/in-memory/in-memory-*.ts`                 | Uma implementação por contrato                               |
+| `events/append-delivery-change.subscriber.ts`       | Traduz evento de domínio em entrada do log                   |
+| `http/controllers/*.controller.ts`                  | Um controller por caso de uso                                |
+| `http/presenters/delivery-presenter.ts`             | Entidade → JSON de resposta                                  |
+| `http/controllers/errors/use-case-error-to-http.ts` | **Modificar**: registrar os erros novos                      |
+| `http/http.module.ts`                               | **Modificar**: registrar controllers, use cases e subscriber |
+| `database/database.module.ts`                       | **Modificar**: registrar os bindings de repositório          |
 
 **Testes**
 
@@ -202,8 +202,8 @@ git commit -m "feat(delivery): add delivery status value object"
 
 - Create: `src/domain/delivery/enterprise/entities/rating-score.ts`
 - Create: `src/domain/delivery/enterprise/entities/quantity.ts`
-- Create: `src/domain/delivery/application/use-cases/invalid-rating-score-error.ts`
-- Create: `src/domain/delivery/application/use-cases/invalid-quantity-error.ts`
+- Create: `src/domain/delivery/application/use-cases/errors/errors/invalid-rating-score-error.ts`
+- Create: `src/domain/delivery/application/use-cases/errors/errors/invalid-quantity-error.ts`
 - Test: `src/domain/delivery/enterprise/entities/rating-score.spec.ts`
 - Test: `src/domain/delivery/enterprise/entities/quantity.spec.ts`
 
@@ -214,7 +214,7 @@ git commit -m "feat(delivery): add delivery status value object"
 ```ts
 import { describe, expect, it } from 'vitest'
 
-import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/invalid-rating-score-error'
+import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/errors/invalid-rating-score-error'
 import { RatingScore } from '@/domain/delivery/enterprise/entities/rating-score'
 
 describe('RatingScore', () => {
@@ -246,7 +246,7 @@ describe('RatingScore', () => {
 ```ts
 import { describe, expect, it } from 'vitest'
 
-import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/invalid-quantity-error'
+import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
 import { Quantity } from '@/domain/delivery/enterprise/entities/quantity'
 
 describe('Quantity', () => {
@@ -301,7 +301,7 @@ export class InvalidQuantityError extends Error implements UseCaseError {
 ```ts
 import { Either, left, right } from '@/core/either'
 import { ValueObject } from '@/core/entities/value-object'
-import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/invalid-rating-score-error'
+import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/errors/invalid-rating-score-error'
 
 const MIN_SCORE = 0
 const MAX_SCORE = 5
@@ -334,7 +334,7 @@ export class RatingScore extends ValueObject<RatingScoreProps> {
 ```ts
 import { Either, left, right } from '@/core/either'
 import { ValueObject } from '@/core/entities/value-object'
-import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/invalid-quantity-error'
+import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
 
 interface QuantityProps {
   value: number
@@ -833,13 +833,13 @@ git commit -m "feat(delivery): add delivery domain events"
 
 **Files:**
 
-- Create: `src/domain/delivery/application/use-cases/delivery-not-found-error.ts`
-- Create: `src/domain/delivery/application/use-cases/courier-mismatch-error.ts`
-- Create: `src/domain/delivery/application/use-cases/invalid-status-transition-error.ts`
-- Create: `src/domain/delivery/application/use-cases/delivery-already-finalized-error.ts`
-- Create: `src/domain/delivery/application/use-cases/delivery-not-delivered-error.ts`
-- Create: `src/domain/delivery/application/use-cases/rating-already-exists-error.ts`
-- Test: `src/domain/delivery/application/use-cases/delivery-errors.spec.ts`
+- Create: `src/domain/delivery/application/use-cases/errors/errors/delivery-not-found-error.ts`
+- Create: `src/domain/delivery/application/use-cases/errors/errors/courier-mismatch-error.ts`
+- Create: `src/domain/delivery/application/use-cases/errors/errors/invalid-status-transition-error.ts`
+- Create: `src/domain/delivery/application/use-cases/errors/errors/delivery-already-finalized-error.ts`
+- Create: `src/domain/delivery/application/use-cases/errors/errors/delivery-not-delivered-error.ts`
+- Create: `src/domain/delivery/application/use-cases/errors/errors/rating-already-exists-error.ts`
+- Test: `src/domain/delivery/application/use-cases/errors/delivery-errors.spec.ts`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -847,12 +847,12 @@ git commit -m "feat(delivery): add delivery domain events"
 import { describe, expect, it } from 'vitest'
 
 import { UseCaseError } from '@/core/errors/use-case-error'
-import { CourierMismatchError } from '@/domain/delivery/application/use-cases/courier-mismatch-error'
-import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
-import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/delivery-not-delivered-error'
-import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/delivery-not-found-error'
-import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/invalid-status-transition-error'
-import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/rating-already-exists-error'
+import { CourierMismatchError } from '@/domain/delivery/application/use-cases/errors/courier-mismatch-error'
+import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
+import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/errors/delivery-not-delivered-error'
+import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
+import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/errors/invalid-status-transition-error'
+import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/errors/rating-already-exists-error'
 
 describe('erros de domínio da entrega', () => {
   it('todos implementam UseCaseError com mensagem', () => {
@@ -880,7 +880,7 @@ describe('erros de domínio da entrega', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/domain/delivery/application/use-cases/delivery-errors.spec.ts`
+Run: `npx vitest run src/domain/delivery/application/use-cases/errors/delivery-errors.spec.ts`
 Expected: FAIL — imports não resolvidos
 
 - [ ] **Step 3: Write minimal implementation**
@@ -963,7 +963,7 @@ export class RatingAlreadyExistsError extends Error implements UseCaseError {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/domain/delivery/application/use-cases/delivery-errors.spec.ts`
+Run: `npx vitest run src/domain/delivery/application/use-cases/errors/delivery-errors.spec.ts`
 Expected: PASS — 2 tests
 
 - [ ] **Step 5: Commit**
@@ -990,8 +990,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { DomainEvents } from '@/core/events/domain-events'
-import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
-import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/invalid-status-transition-error'
+import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
+import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/errors/invalid-status-transition-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 import { DeliveryItem } from '@/domain/delivery/enterprise/entities/delivery-item'
@@ -1175,8 +1175,8 @@ import { Either, left, right } from '@/core/either'
 import { AggregateRoot } from '@/core/entities/aggregate-root'
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { Optional } from '@/core/types/optional'
-import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
-import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/invalid-status-transition-error'
+import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
+import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/errors/invalid-status-transition-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { DeliveryItem } from '@/domain/delivery/enterprise/entities/delivery-item'
 import { DeliveryStatus } from '@/domain/delivery/enterprise/entities/delivery-status'
@@ -1527,8 +1527,8 @@ describe('Delivery — detalhes e avaliação', () => {
 Adicionar aos imports do arquivo de teste:
 
 ```ts
-import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/delivery-not-delivered-error'
-import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/rating-already-exists-error'
+import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/errors/delivery-not-delivered-error'
+import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/errors/rating-already-exists-error'
 import { RatingScore } from '@/domain/delivery/enterprise/entities/rating-score'
 ```
 
@@ -1542,8 +1542,8 @@ Expected: FAIL — `delivery.changeItems is not a function`
 Adicionar aos imports de `delivery.ts`:
 
 ```ts
-import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/delivery-not-delivered-error'
-import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/rating-already-exists-error'
+import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/errors/delivery-not-delivered-error'
+import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/errors/rating-already-exists-error'
 import { DeliveryDetailsChangedEvent } from '@/domain/delivery/enterprise/events/delivery-details-changed.event'
 import { DeliveryRatedEvent } from '@/domain/delivery/enterprise/events/delivery-rated.event'
 ```
@@ -3373,11 +3373,11 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { DomainEvents } from '@/core/events/domain-events'
-import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/delivery-not-delivered-error'
-import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/delivery-not-found-error'
-import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/invalid-rating-score-error'
+import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/errors/delivery-not-delivered-error'
+import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
+import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/errors/invalid-rating-score-error'
 import { RateDeliveryUseCase } from '@/domain/delivery/application/use-cases/rate-delivery'
-import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/rating-already-exists-error'
+import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/errors/rating-already-exists-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 import { InMemoryDeliveriesRepository } from '@/infrastructure/database/in-memory/in-memory-deliveries-repository'
@@ -3514,10 +3514,10 @@ import { Injectable } from '@nestjs/common'
 
 import { Either, left, right } from '@/core/either'
 import { DeliveriesRepository } from '@/domain/delivery/application/repositories/deliveries-repository'
-import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/delivery-not-delivered-error'
-import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/delivery-not-found-error'
-import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/invalid-rating-score-error'
-import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/rating-already-exists-error'
+import { DeliveryNotDeliveredError } from '@/domain/delivery/application/use-cases/errors/delivery-not-delivered-error'
+import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
+import { InvalidRatingScoreError } from '@/domain/delivery/application/use-cases/errors/invalid-rating-score-error'
+import { RatingAlreadyExistsError } from '@/domain/delivery/application/use-cases/errors/rating-already-exists-error'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 import { RatingScore } from '@/domain/delivery/enterprise/entities/rating-score'
 
@@ -3606,7 +3606,7 @@ import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { DomainEvents } from '@/core/events/domain-events'
 import { ResourceNotFoundError } from '@/core/errors/resource-not-found-error'
 import { CreateDeliveryUseCase } from '@/domain/delivery/application/use-cases/create-delivery'
-import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/invalid-quantity-error'
+import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
 import { Product } from '@/domain/delivery/enterprise/entities/product'
 import { InMemoryDeliveriesRepository } from '@/infrastructure/database/in-memory/in-memory-deliveries-repository'
 import { InMemoryProductsRepository } from '@/infrastructure/database/in-memory/in-memory-products-repository'
@@ -3681,8 +3681,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { DomainEvents } from '@/core/events/domain-events'
-import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
-import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/delivery-not-found-error'
+import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
+import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
 import { UpdateDeliveryUseCase } from '@/domain/delivery/application/use-cases/update-delivery'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
@@ -3820,7 +3820,7 @@ import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { ResourceNotFoundError } from '@/core/errors/resource-not-found-error'
 import { DeliveriesRepository } from '@/domain/delivery/application/repositories/deliveries-repository'
 import { ProductsRepository } from '@/domain/delivery/application/repositories/products-repository'
-import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/invalid-quantity-error'
+import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 import { DeliveryItem } from '@/domain/delivery/enterprise/entities/delivery-item'
@@ -3915,10 +3915,10 @@ import {
   buildItems,
   DeliveryItemInput,
 } from '@/domain/delivery/application/use-cases/create-delivery'
-import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/delivery-already-finalized-error'
-import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/delivery-not-found-error'
-import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/invalid-quantity-error'
-import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/invalid-status-transition-error'
+import { DeliveryAlreadyFinalizedError } from '@/domain/delivery/application/use-cases/errors/delivery-already-finalized-error'
+import { DeliveryNotFoundError } from '@/domain/delivery/application/use-cases/errors/delivery-not-found-error'
+import { InvalidQuantityError } from '@/domain/delivery/application/use-cases/errors/invalid-quantity-error'
+import { InvalidStatusTransitionError } from '@/domain/delivery/application/use-cases/errors/invalid-status-transition-error'
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 
@@ -4024,9 +4024,9 @@ git commit -m "feat(delivery): add create and update delivery use cases"
 **Files:**
 
 - Create: `src/infrastructure/http/presenters/delivery-presenter.ts`
-- Modify: `src/infrastructure/http/errors/use-case-error-to-http.ts`
+- Modify: `src/infrastructure/http/controllers/errors/use-case-error-to-http.ts`
 - Test: `src/infrastructure/http/presenters/delivery-presenter.spec.ts`
-- Test: `src/infrastructure/http/errors/use-case-error-to-http.spec.ts` (já existe — adicionar casos)
+- Test: `src/infrastructure/http/controllers/errors/use-case-error-to-http.spec.ts` (já existe — adicionar casos)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -4323,7 +4323,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common'
 import { z } from 'zod'
 
 import { GetDeliverySnapshotUseCase } from '@/domain/delivery/application/use-cases/get-delivery-snapshot'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4373,7 +4373,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common'
 import { z } from 'zod'
 
 import { PullDeliveryChangesUseCase } from '@/domain/delivery/application/use-cases/pull-delivery-changes'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4428,7 +4428,7 @@ import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common'
 import { z } from 'zod'
 
 import { PushDeliveryEventsUseCase } from '@/domain/delivery/application/use-cases/push-delivery-events'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4490,7 +4490,7 @@ import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common'
 import { z } from 'zod'
 
 import { RateDeliveryUseCase } from '@/domain/delivery/application/use-cases/rate-delivery'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4533,7 +4533,7 @@ import { Body, Controller, HttpCode, Post } from '@nestjs/common'
 import { z } from 'zod'
 
 import { CreateDeliveryUseCase } from '@/domain/delivery/application/use-cases/create-delivery'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
@@ -4584,7 +4584,7 @@ import { Body, Controller, Param, Patch } from '@nestjs/common'
 import { z } from 'zod'
 
 import { UpdateDeliveryUseCase } from '@/domain/delivery/application/use-cases/update-delivery'
-import { useCaseErrorToHttp } from '@/infrastructure/http/errors/use-case-error-to-http'
+import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
 import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
