@@ -25,6 +25,7 @@ export type PushDeliveryEventRejectionCode =
   | 'DELIVERY_NOT_FOUND'
   | 'DELIVERY_REASSIGNED'
   | 'DELIVERY_CANCELLED'
+  | 'DELIVERY_ALREADY_FINALIZED'
   | 'INVALID_STATUS_TRANSITION'
 
 export interface PushDeliveryEventResult {
@@ -127,6 +128,20 @@ export class PushDeliveryEventsUseCase {
         clientEventId: event.clientEventId,
         status: 'REJECTED',
         code: 'DELIVERY_CANCELLED',
+        delivery,
+      }
+    }
+
+    // Estado terminal que não seja CANCELLED (hoje, só DELIVERED) ganha código
+    // próprio em vez de cair em INVALID_STATUS_TRANSITION: para o cliente
+    // offline a distinção importa — DELIVERY_ALREADY_FINALIZED diz "descarte,
+    // não há mais o que aplicar", enquanto INVALID_STATUS_TRANSITION diz "a
+    // ordem pode estar errada, vale reconciliar".
+    if (delivery.status.isFinal) {
+      return {
+        clientEventId: event.clientEventId,
+        status: 'REJECTED',
+        code: 'DELIVERY_ALREADY_FINALIZED',
         delivery,
       }
     }

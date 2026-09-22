@@ -146,6 +146,7 @@ export class PushDeliveryEventsController {
                   'DELIVERY_NOT_FOUND',
                   'DELIVERY_REASSIGNED',
                   'DELIVERY_CANCELLED',
+                  'DELIVERY_ALREADY_FINALIZED',
                   'INVALID_STATUS_TRANSITION',
                 ],
                 description: 'Só presente quando status=REJECTED.',

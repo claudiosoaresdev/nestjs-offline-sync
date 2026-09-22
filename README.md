@@ -152,9 +152,17 @@ Agregado muda de estado
             └─ Subscriber grava a entrada no log com versão monotônica
 ```
 
-Não existe caminho que mude estado sem gerar change. Durante a implementação, três
-bugs que furavam essa corrente foram encontrados e corrigidos em revisão — todos
-passariam em teste de caminho feliz:
+Não existe caminho que mude estado sem gerar change — desde que a gravação do
+log não possa falhar. O barramento de domain events é fire-and-forget de
+propósito (a promise do handler é descartada): se o `append` rejeitar, a
+mudança some do log sem sintoma, e a operação que a originou ainda reporta
+sucesso. Hoje isso não é um risco real porque o `append` in-memory é síncrono
+por baixo e não tem caminho de falha; com um banco de verdade, sustentar a
+mesma garantia passa a exigir outbox ou transação entre a gravação da entidade
+e a do log.
+
+Durante a implementação, três bugs que furavam essa corrente foram encontrados
+e corrigidos em revisão — todos passariam em teste de caminho feliz:
 
 | Bug                                             | Efeito                                          |
 | ----------------------------------------------- | ----------------------------------------------- |

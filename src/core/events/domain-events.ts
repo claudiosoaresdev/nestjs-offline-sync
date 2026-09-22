@@ -62,6 +62,15 @@ export class DomainEvents {
   private static dispatch(event: DomainEvent): void {
     const handlers = this.handlersMap[event.constructor.name]
 
+    // `void` descarta de propósito a promise devolvida pelo handler: este
+    // barramento é fire-and-forget, e tratar erro aqui exigiria decidir uma
+    // política de retry que o projeto não tem. Efeito colateral: um handler
+    // que rejeite perde seu efeito em silêncio, sem propagar para quem
+    // disparou o evento. A garantia "nenhuma mudança de estado sem change"
+    // (ver README) depende de o handler que grava o log (hoje,
+    // AppendDeliveryChangeSubscriber → append) não ter caminho de falha —
+    // verdade para o repositório in-memory, mas não para persistência real,
+    // que precisaria de outbox ou transação para sustentar a mesma garantia.
     handlers?.forEach((handler) => void handler(event))
   }
 }
