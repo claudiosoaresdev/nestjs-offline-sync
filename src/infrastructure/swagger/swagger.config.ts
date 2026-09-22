@@ -17,6 +17,14 @@ export function setupSwagger(
     .setVersion('1.0')
     .addServer(apiUrl, `Ambiente ${nodeEnv}`)
     .addTag('health', 'Liveness e readiness da aplicação')
+    .addTag(
+      'sync',
+      'Protocolo de sincronização offline-first: snapshot paginado, delta por versão e envio em lote de eventos de campo',
+    )
+    .addTag(
+      'deliveries',
+      'Ciclo de vida de uma entrega: criação, atualização/cancelamento e avaliação pelo destinatário',
+    )
     .setLicense('UNLICENSED', '')
     .build()
 
