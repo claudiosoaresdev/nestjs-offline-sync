@@ -77,6 +77,26 @@ describe('AppendDeliveryChangeSubscriber', () => {
     expect(upsert.courierId.equals(newCourierId)).toBe(true)
   })
 
+  it('reatribuição grava REMOVE e UPSERT no log, com REMOVE em versão menor', async () => {
+    const delivery = makeDelivery()
+    await deliveries.create(delivery)
+
+    const newCourierId = new UniqueEntityID()
+    delivery.assignTo(newCourierId)
+    await deliveries.save(delivery)
+
+    const remove = changes.items.find(
+      (item) => item.type === 'REMOVE' && item.courierId.equals(courierId),
+    )
+    const upsert = changes.items.find(
+      (item) => item.type === 'UPSERT' && item.courierId.equals(newCourierId),
+    )
+
+    expect(remove).toBeDefined()
+    expect(upsert).toBeDefined()
+    expect(remove?.version).toBeLessThan(upsert?.version ?? Infinity)
+  })
+
   it('cancelamento termina com REMOVE', async () => {
     const delivery = makeDelivery()
     await deliveries.create(delivery)

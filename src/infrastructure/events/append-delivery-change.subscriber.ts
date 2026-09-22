@@ -97,19 +97,30 @@ export class AppendDeliveryChangeSubscriber implements EventHandler {
     // UPSERT falhar, a entrega fica invisível para os dois entregadores. No
     // in-memory isso não acontece porque append não tem caminho de falha; com
     // persistência real os dois precisam ser atômicos (transação ou outbox).
-    if (event.previousCourierId) {
-      await this.changes.append({
-        type: 'REMOVE',
-        deliveryId: event.deliveryId,
-        courierId: event.previousCourierId,
-      })
-    }
+    //
+    // Os dois appends são disparados no mesmo tick síncrono (sem `await`
+    // entre eles) e só então aguardados juntos. Se o primeiro `await` fosse
+    // resolvido antes de chamar o segundo, o REMOVE ficaria visível — e a
+    // entrega ausente de qualquer carteira — durante uma microtask inteira
+    // antes do UPSERT ser sequer disparado. Como `append` incrementa a versão
+    // de forma síncrona, a ordem de atribuição continua correta mesmo
+    // disparando os dois de uma vez: o REMOVE (chamado primeiro) recebe
+    // versão menor que o UPSERT.
+    const removal = event.previousCourierId
+      ? this.changes.append({
+          type: 'REMOVE',
+          deliveryId: event.deliveryId,
+          courierId: event.previousCourierId,
+        })
+      : undefined
 
-    await this.changes.append({
+    const upsert = this.changes.append({
       type: 'UPSERT',
       deliveryId: event.deliveryId,
       courierId: event.courierId,
     })
+
+    await Promise.all([removal, upsert])
   }
 
   private async onCancelled(event: DeliveryCancelledEvent): Promise<void> {
