@@ -109,7 +109,7 @@ describe('PullDeliveryChangesUseCase', () => {
     const delivery = makeDelivery()
     await deliveries.create(delivery)
 
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     await deliveries.save(delivery)
 
     delivery.registerFailedAttempt('Ausente', new Date())

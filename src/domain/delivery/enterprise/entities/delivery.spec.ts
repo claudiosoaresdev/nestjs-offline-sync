@@ -67,7 +67,7 @@ describe('Delivery — criação e transições', () => {
   it('sai para entrega e emite evento de status', () => {
     const delivery = makeDelivery()
 
-    const result = delivery.markOutForDelivery()
+    const result = delivery.markOutForDelivery(new Date())
 
     expect(result.isRight()).toBe(true)
     expect(delivery.status.value).toBe('OUT_FOR_DELIVERY')
@@ -88,7 +88,7 @@ describe('Delivery — criação e transições', () => {
   it('entrega registrando quem recebeu', () => {
     const delivery = makeDelivery()
     const occurredAt = new Date('2026-09-21T12:00:00.000Z')
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
 
     const result = delivery.markDelivered('Porteiro', occurredAt)
 
@@ -100,7 +100,7 @@ describe('Delivery — criação e transições', () => {
 
   it('tentativa falha incrementa attempts e volta para PENDING', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
 
     const result = delivery.registerFailedAttempt(
       'Ausente',
@@ -127,7 +127,7 @@ describe('Delivery — criação e transições', () => {
 
   it('recusa cancelar entrega já entregue', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     const result = delivery.cancel('tarde demais')
@@ -173,7 +173,7 @@ describe('Delivery — criação e transições', () => {
   it('incrementa revision a cada mudança', () => {
     const delivery = makeDelivery()
 
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     expect(delivery.revision).toBe(2)
@@ -181,7 +181,7 @@ describe('Delivery — criação e transições', () => {
 
   it('recusa entregar duas vezes', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     const result = delivery.markDelivered('Outra pessoa', new Date())
@@ -204,7 +204,7 @@ describe('Delivery — criação e transições', () => {
 
   it('recusa registrar tentativa falha duas vezes seguidas sem sair para entrega de novo', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.registerFailedAttempt('Ausente', new Date())
 
     const result = delivery.registerFailedAttempt('Ausente de novo', new Date())
@@ -217,7 +217,7 @@ describe('Delivery — criação e transições', () => {
 
   it('recusa cancelar após entregar, avaliar e não perde a avaliação', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     const score = RatingScore.create(5)
@@ -236,7 +236,7 @@ describe('Delivery — criação e transições', () => {
     const previous = new UniqueEntityID()
     const next = new UniqueEntityID()
     const delivery = makeDelivery(previous)
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.clearEvents()
 
     const result = delivery.assignTo(next)
@@ -284,7 +284,7 @@ describe('Delivery — detalhes e avaliação', () => {
 
   it('recusa alterar itens de entrega finalizada', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     const result = delivery.changeItems([makeItem()])
@@ -295,7 +295,7 @@ describe('Delivery — detalhes e avaliação', () => {
 
   it('avalia entrega entregue', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     const score = RatingScore.create(5)
@@ -321,7 +321,7 @@ describe('Delivery — detalhes e avaliação', () => {
 
   it('recusa avaliar duas vezes', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     const score = RatingScore.create(4)
@@ -345,7 +345,7 @@ describe('Delivery — detalhes e avaliação', () => {
 
   it('não permite mutar o estado interno via a referência devolvida por rating', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     const score = RatingScore.create(5)

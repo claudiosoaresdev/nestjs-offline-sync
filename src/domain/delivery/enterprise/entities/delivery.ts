@@ -136,7 +136,7 @@ export class Delivery extends AggregateRoot<DeliveryProps> {
   }
 
   markOutForDelivery(
-    occurredAt: Date = new Date(),
+    occurredAt: Date,
   ): Either<InvalidStatusTransitionError, null> {
     return this.transitionTo(DeliveryStatus.outForDelivery(), occurredAt)
   }

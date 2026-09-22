@@ -55,7 +55,7 @@ describe('AppendDeliveryChangeSubscriber', () => {
     const delivery = makeDelivery()
     await deliveries.create(delivery)
 
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     await deliveries.save(delivery)
 
     expect(changes.items).toHaveLength(2)
@@ -91,7 +91,7 @@ describe('AppendDeliveryChangeSubscriber', () => {
     const delivery = makeDelivery()
     await deliveries.create(delivery)
 
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     await deliveries.save(delivery)
 
     delivery.markDelivered('Maria', new Date())

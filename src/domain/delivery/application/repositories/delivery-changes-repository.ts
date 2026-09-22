@@ -16,6 +16,11 @@ export interface FindChangesForCourierParams {
   limit: number
 }
 
+export interface HasChangesForCourierAfterParams {
+  courierId: string
+  version: number
+}
+
 export abstract class DeliveryChangesRepository {
   abstract append(input: AppendDeliveryChangeInput): Promise<DeliveryChange>
   /**
@@ -29,8 +34,7 @@ export abstract class DeliveryChangesRepository {
     params: FindChangesForCourierParams,
   ): Promise<DeliveryChange[]>
   abstract hasChangesForCourierAfter(
-    courierId: string,
-    version: number,
+    params: HasChangesForCourierAfterParams,
   ): Promise<boolean>
   abstract minVersion(): Promise<number>
 }

@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { PullDeliveryChangesUseCase } from '@/domain/delivery/application/use-cases/pull-delivery-changes'
 import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
-import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
+import { DeliveryChangePresenter } from '@/infrastructure/http/presenters/delivery-change-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
 const changesQuerySchema = z.object({
@@ -37,14 +37,9 @@ export class PullDeliveryChangesController {
       hasMore,
       minVersion,
       resyncRequired,
-      changes: result.value.changes.map((change) => ({
-        type: change.type,
-        version: change.version,
-        deliveryId: change.deliveryId,
-        delivery: change.delivery
-          ? DeliveryPresenter.toHTTP(change.delivery)
-          : undefined,
-      })),
+      changes: result.value.changes.map((change) =>
+        DeliveryChangePresenter.toHTTP(change),
+      ),
     }
   }
 }

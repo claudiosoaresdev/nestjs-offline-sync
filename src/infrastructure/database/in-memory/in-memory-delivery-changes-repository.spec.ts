@@ -86,10 +86,16 @@ describe('InMemoryDeliveryChangesRepository', () => {
     })
 
     await expect(
-      sut.hasChangesForCourierAfter(courierId.toString(), 0),
+      sut.hasChangesForCourierAfter({
+        courierId: courierId.toString(),
+        version: 0,
+      }),
     ).resolves.toBe(true)
     await expect(
-      sut.hasChangesForCourierAfter(courierId.toString(), 1),
+      sut.hasChangesForCourierAfter({
+        courierId: courierId.toString(),
+        version: 1,
+      }),
     ).resolves.toBe(false)
   })
 

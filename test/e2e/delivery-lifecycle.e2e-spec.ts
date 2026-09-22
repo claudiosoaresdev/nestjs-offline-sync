@@ -92,10 +92,32 @@ describe('Ciclo de entrega (e2e)', () => {
       'APPLIED',
     ])
 
-    await request(httpServer)
+    const rated = await request(httpServer)
       .post(`/deliveries/${deliveryId}/rating`)
       .send({ score: 5, comment: 'Chegou antes do previsto' })
       .expect(201)
+
+    const ratedBody = rated.body as {
+      delivery: {
+        id: string
+        status: string
+        rating: { score: number } | null
+        customer?: unknown
+      }
+    }
+
+    // Resposta mínima: sem dados do cliente, para quem só provou conhecer o
+    // UUID da entrega e não passou por autenticação.
+    expect(ratedBody.delivery).toEqual({
+      id: deliveryId,
+      status: 'DELIVERED',
+      rating: {
+        score: 5,
+        comment: 'Chegou antes do previsto',
+        ratedAt: expect.any(String) as string,
+      },
+    })
+    expect(ratedBody.delivery.customer).toBeUndefined()
 
     const delta = await request(httpServer)
       .get(`/couriers/${courierId}/deliveries/changes`)

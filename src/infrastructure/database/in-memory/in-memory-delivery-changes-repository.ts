@@ -4,6 +4,7 @@ import {
   AppendDeliveryChangeInput,
   DeliveryChangesRepository,
   FindChangesForCourierParams,
+  HasChangesForCourierAfterParams,
 } from '@/domain/delivery/application/repositories/delivery-changes-repository'
 import { DeliveryChange } from '@/domain/delivery/enterprise/entities/delivery-change'
 import { InMemorySyncStateRepository } from '@/infrastructure/database/in-memory/in-memory-sync-state-repository'
@@ -46,10 +47,10 @@ export class InMemoryDeliveryChangesRepository extends DeliveryChangesRepository
     return Promise.resolve(rows)
   }
 
-  hasChangesForCourierAfter(
-    courierId: string,
-    version: number,
-  ): Promise<boolean> {
+  hasChangesForCourierAfter({
+    courierId,
+    version,
+  }: HasChangesForCourierAfterParams): Promise<boolean> {
     return Promise.resolve(
       this.items.some(
         (item) =>

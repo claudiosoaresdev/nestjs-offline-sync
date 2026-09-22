@@ -25,7 +25,7 @@ async function makeDeliveredDelivery(): Promise<Delivery> {
     items: [],
   })
 
-  delivery.markOutForDelivery()
+  delivery.markOutForDelivery(new Date())
   delivery.markDelivered('Maria', new Date())
   await deliveries.create(delivery)
 

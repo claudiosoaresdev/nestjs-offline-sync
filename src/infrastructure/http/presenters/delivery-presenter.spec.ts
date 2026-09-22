@@ -47,7 +47,7 @@ describe('DeliveryPresenter', () => {
 
   it('serializa a avaliação quando existe', () => {
     const delivery = makeDelivery()
-    delivery.markOutForDelivery()
+    delivery.markOutForDelivery(new Date())
     delivery.markDelivered('Maria', new Date())
 
     const score = RatingScore.create(4)

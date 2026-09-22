@@ -99,10 +99,10 @@ export class PullDeliveryChangesUseCase {
     // Cursor do lote é a maior versão lida — nunca currentVersion, senão o
     // cliente pula o que ficou acima do limite e nunca mais recebe.
     const nextVersion = ordered[ordered.length - 1].version
-    const hasMore = await this.changes.hasChangesForCourierAfter(
+    const hasMore = await this.changes.hasChangesForCourierAfter({
       courierId,
-      nextVersion,
-    )
+      version: nextVersion,
+    })
 
     const changes = await Promise.all(
       this.compact(ordered).map((row) => this.toView(row, courierId)),

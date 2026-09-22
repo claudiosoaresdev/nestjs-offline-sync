@@ -3,7 +3,6 @@ import { z } from 'zod'
 
 import { RateDeliveryUseCase } from '@/domain/delivery/application/use-cases/rate-delivery'
 import { useCaseErrorToHttp } from '@/infrastructure/http/controllers/errors/use-case-error-to-http'
-import { DeliveryPresenter } from '@/infrastructure/http/presenters/delivery-presenter'
 import { ZodValidationPipe } from '@/infrastructure/validation/zod-validation.pipe'
 
 const rateDeliveryBodySchema = z.object({
@@ -33,6 +32,24 @@ export class RateDeliveryController {
       throw useCaseErrorToHttp(result.value)
     }
 
-    return { delivery: DeliveryPresenter.toHTTP(result.value.delivery) }
+    // Quem chama esta rota só provou conhecer o UUID da entrega, sem
+    // autenticação — a resposta não pode devolver dados do cliente (nome,
+    // telefone, endereço). O mínimo necessário para o app confirmar a
+    // avaliação: status atual e a nota que acabou de ser registrada.
+    const { delivery } = result.value
+
+    return {
+      delivery: {
+        id: delivery.id.toString(),
+        status: delivery.status.value,
+        rating: delivery.rating
+          ? {
+              score: delivery.rating.score.value,
+              comment: delivery.rating.comment,
+              ratedAt: delivery.rating.ratedAt.toISOString(),
+            }
+          : null,
+      },
+    }
   }
 }
