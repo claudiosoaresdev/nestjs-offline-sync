@@ -19,8 +19,16 @@ contexts, layers, testing setup, tooling changes):
   — same blueprint already applied end to end; follow its file naming, module layout and
   test setup rather than inventing a new convention.
 
-`src/domain/` is intentionally empty: no bounded context has been modelled yet. Do not
-invent one — ask first.
+`src/domain/delivery/` is the single bounded context: deliveries assigned to couriers,
+synchronised by snapshot + delta sync, and rated by the recipient after completion. The
+sync protocol is specified in
+[docs/superpowers/specs/2026-09-21-api-entregas-delta-sync-design.md](docs/superpowers/specs/2026-09-21-api-entregas-delta-sync-design.md)
+— read it before touching anything involving `version`, `nextVersion` or the change log.
+
+Two invariants hold the protocol together and are covered by tests that were verified to
+fail when broken: the client advances its cursor to `nextVersion` (never `currentVersion`),
+and repository bindings use `useExisting` (never `useClass`) so a single version counter
+serves both the contract and the change log.
 
 When a decision isn't covered by these docs, follow the patterns already established in
 `src/core/` and `src/infrastructure/`.
