@@ -147,6 +147,34 @@ describe('PushDeliveryEventsUseCase', () => {
     expect(result.value.results[0].code).toBe('DELIVERY_CANCELLED')
   })
 
+  it('rejeita evento contra entrega já entregue com código próprio', async () => {
+    const delivery = makeDelivery()
+    delivery.markOutForDelivery(new Date('2026-09-21T11:00:00.000Z'))
+    await deliveries.create(delivery)
+
+    delivery.markDelivered('Maria', new Date('2026-09-21T12:00:00.000Z'))
+    await deliveries.save(delivery)
+
+    const result = await sut.execute({
+      courierId: courierId.toString(),
+      events: [
+        {
+          clientEventId: 'evt-1',
+          deliveryId: delivery.id.toString(),
+          type: 'DELIVERED',
+          occurredAt: new Date('2026-09-21T13:00:00.000Z'),
+          receivedBy: 'Outra pessoa',
+        },
+      ],
+    })
+
+    if (result.isLeft()) throw new Error('push falhou')
+
+    expect(result.value.results[0].status).toBe('REJECTED')
+    expect(result.value.results[0].code).toBe('DELIVERY_ALREADY_FINALIZED')
+    expect(result.value.results[0].code).not.toBe('INVALID_STATUS_TRANSITION')
+  })
+
   it('rejeita evento de entrega que já é de outro courier', async () => {
     const delivery = makeDelivery(new UniqueEntityID())
     await deliveries.create(delivery)
