@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { UniqueEntityID } from '@/core/entities/unique-entity-id'
 import { ResourceNotFoundError } from '@/core/errors/resource-not-found-error'
@@ -10,6 +10,7 @@ import { UpdateDeliveryUseCase } from '@/domain/delivery/application/use-cases/u
 import { CustomerInfo } from '@/domain/delivery/enterprise/entities/customer-info'
 import { Delivery } from '@/domain/delivery/enterprise/entities/delivery'
 import { Product } from '@/domain/delivery/enterprise/entities/product'
+import { DeliveryDetailsChangedEvent } from '@/domain/delivery/enterprise/events/delivery-details-changed.event'
 import { InMemoryDeliveriesRepository } from '@/infrastructure/database/in-memory/in-memory-deliveries-repository'
 import { InMemoryProductsRepository } from '@/infrastructure/database/in-memory/in-memory-products-repository'
 
@@ -152,6 +153,33 @@ describe('UpdateDeliveryUseCase', () => {
     })
 
     expect(result.value).toBeInstanceOf(InvalidCancelReasonError)
+  })
+
+  it('recusa cancelReason em branco combinado com outra mudança sem mutar o agregado', async () => {
+    const delivery = await makeDelivery()
+    const originalAddress = delivery.customer.address
+
+    const handler = vi.fn()
+    DomainEvents.register(handler, DeliveryDetailsChangedEvent.name)
+
+    const result = await sut.execute({
+      deliveryId: delivery.id.toString(),
+      customer: {
+        name: 'João',
+        phone: '11988888888',
+        address: 'Rua B, 200',
+      },
+      cancelReason: '   ',
+    })
+
+    expect(result.value).toBeInstanceOf(InvalidCancelReasonError)
+    expect(deliveries.items[0].customer.address).toBe(originalAddress)
+
+    // Nenhuma mutação aconteceu, então não há evento pendurado esperando o
+    // próximo save desta entrega para disparar com versão errada.
+    await deliveries.save(delivery)
+
+    expect(handler).not.toHaveBeenCalled()
   })
 
   it('recusa produto ausente em lote com múltiplos itens', async () => {

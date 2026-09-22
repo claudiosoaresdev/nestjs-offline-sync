@@ -55,10 +55,16 @@ export class UpdateDeliveryUseCase {
       return left(new DeliveryNotFoundError())
     }
 
-    // All mutations below only fail by isFinal status, checked above at findById.
-    // If a mutation passes, subsequent ones won't fail, preventing orphaned domain events
-    // without a corresponding save. Future mutations that fail for other reasons must
-    // ensure domain events don't leak to the static registry without persisting.
+    // O repositório in-memory devolve a referência viva do agregado: uma
+    // mutação abaixo já vale mesmo sem `save`. Por isso toda validação que
+    // pode falhar — incluindo a de `cancelReason` — precisa acontecer aqui,
+    // antes da primeira chamada que muda estado. É isso que impede um
+    // evento de domínio órfão (mutação aplicada, `save` nunca chamado,
+    // evento pendurado em `DomainEvents.markedAggregates` até o próximo
+    // `save` daquela entrega).
+    if (cancelReason !== undefined && !cancelReason.trim()) {
+      return left(new InvalidCancelReasonError())
+    }
 
     if (items) {
       const built = await buildItems(this.products, items)
@@ -91,13 +97,7 @@ export class UpdateDeliveryUseCase {
     }
 
     if (cancelReason !== undefined) {
-      const trimmed = cancelReason.trim()
-
-      if (!trimmed) {
-        return left(new InvalidCancelReasonError())
-      }
-
-      const cancelled = delivery.cancel(trimmed)
+      const cancelled = delivery.cancel(cancelReason.trim())
 
       if (cancelled.isLeft()) {
         return left(cancelled.value)
