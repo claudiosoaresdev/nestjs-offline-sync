@@ -1,0 +1,394 @@
+{
+  "$schema": "https://claudiosoares.dev/schemas/app-brief.v1.json",
+  "meta": {
+    "name": "Rota — app do entregador",
+    "version": "1.0.0",
+    "language": "pt-BR",
+    "generatedFrom": "nestjs-offline-sync (Delivery Sync API)",
+    "purpose": "Prompt executável para gerar o cliente offline-first que consome o protocolo de delta sync deste backend."
+  },
+
+  "role": "Você é um engenheiro mobile sênior. Construa o app cliente descrito abaixo. O app é offline-first de verdade: a UI lê SEMPRE do banco local, nunca da rede. A rede só alimenta o banco local (pull) e drena a fila de eventos (push).",
+
+  "product": {
+    "oneLiner": "App de entregador que funciona o dia inteiro sem sinal e converge com o servidor sem perder nem duplicar nada.",
+    "primaryUser": "Entregador em rua, celular de entrada, bateria contada, sinal intermitente (túnel, subsolo, zona rural).",
+    "successCriteria": [
+      "Abrir o app sem rede mostra a carteira do dia completa em < 300ms.",
+      "Toda ação de campo é gravada localmente e confirmada na UI antes de qualquer chamada de rede.",
+      "Depois de 8h offline e 200 eventos na fila, um único ciclo de sync converge o cache local com o servidor — zero divergência.",
+      "Nenhuma ação do entregador é perdida por falha de rede, kill do app ou reboot do aparelho."
+    ],
+    "nonGoals": [
+      "Painel da operação / visão de gestor",
+      "Chat, rastreio em mapa em tempo real, prova de entrega com foto",
+      "Login social; autenticação fica fora do escopo desta versão"
+    ]
+  },
+
+  "stack": {
+    "recommended": {
+      "framework": "React Native (Expo, dev client)",
+      "language": "TypeScript strict",
+      "localDb": "SQLite (expo-sqlite ou op-sqlite) com Drizzle ORM",
+      "state": "TanStack Query apenas para o motor de sync; a UI lê o SQLite por live queries",
+      "navigation": "expo-router",
+      "background": "expo-task-manager + expo-background-fetch, e flush oportunista no NetInfo online",
+      "http": "fetch nativo com timeout, retry com backoff exponencial e jitter"
+    },
+    "alternativesAllowed": [
+      "Flutter + Drift",
+      "Kotlin + Room + WorkManager"
+    ],
+    "hardRules": [
+      "Nenhum componente de tela chama a API diretamente.",
+      "A camada de sync é a única que fala HTTP e a única que escreve na tabela espelho.",
+      "Todo timestamp trafega em ISO 8601 UTC; a UI formata em hora local."
+    ]
+  },
+
+  "api": {
+    "baseUrl": "http://localhost:3333",
+    "docs": "/docs (Swagger)",
+    "auth": "nenhuma nesta versão; o courierId vem da configuração local",
+    "errorContract": "422 com corpo de erro de validação Zod; 404/409 com { statusCode, message }",
+    "rateLimit": "Throttler ativo — o cliente deve respeitar 429 com backoff",
+    "endpoints": {
+      "snapshot": {
+        "method": "GET",
+        "path": "/couriers/{courierId}/deliveries/snapshot",
+        "query": {
+          "limit": "int 1–500, default 100",
+          "cursor": "uuid da última entrega da página anterior (omitir na primeira)",
+          "withTotal": "'true' | 'false' (string, default 'false')"
+        },
+        "response": {
+          "currentVersion": "int — âncora do cursor de delta",
+          "totalItems": "int | null",
+          "nextCursor": "uuid | null",
+          "deliveries": "Delivery[]"
+        }
+      },
+      "changes": {
+        "method": "GET",
+        "path": "/couriers/{courierId}/deliveries/changes",
+        "query": {
+          "sinceVersion": "int >= 0 obrigatório — âncora do snapshot ou nextVersion da chamada anterior",
+          "limit": "int 1–500, default 200 (teto de linhas brutas do log, não do array final)"
+        },
+        "response": {
+          "currentVersion": "int",
+          "nextVersion": "int — MAIOR VERSÃO DO LOTE; o cursor local avança para cá",
+          "hasMore": "bool",
+          "minVersion": "int — piso de retenção do log",
+          "resyncRequired": "bool",
+          "changes": "Array<{ type: 'UPSERT' | 'REMOVE', version: int, deliveryId: uuid, delivery?: Delivery }>"
+        }
+      },
+      "pushEvents": {
+        "method": "POST",
+        "path": "/couriers/{courierId}/deliveries/events",
+        "body": {
+          "events": [
+            {
+              "clientEventId": "uuid v4 gerado no dispositivo — chave de idempotência",
+              "deliveryId": "uuid",
+              "type": "'OUT_FOR_DELIVERY' | 'FAILED_ATTEMPT' | 'DELIVERED'",
+              "occurredAt": "ISO 8601 — relógio do dispositivo no momento da ação",
+              "reason": "string <= 200 (usado em FAILED_ATTEMPT)",
+              "receivedBy": "string <= 120 (usado em DELIVERED)"
+            }
+          ]
+        },
+        "response": {
+          "results": "Array<{ clientEventId, status: 'APPLIED'|'DUPLICATE'|'REJECTED', code?: RejectionCode, delivery?: Delivery }> — mesma ordem do array enviado"
+        },
+        "rejectionCodes": [
+          "DELIVERY_NOT_FOUND",
+          "DELIVERY_REASSIGNED",
+          "DELIVERY_CANCELLED",
+          "DELIVERY_ALREADY_FINALIZED",
+          "INVALID_STATUS_TRANSITION"
+        ]
+      },
+      "createDelivery": {
+        "method": "POST",
+        "path": "/deliveries",
+        "body": {
+          "courierId": "uuid",
+          "customer": { "name": "1–120", "phone": "8–20", "address": "1–200" },
+          "items": "Array<{ productId: uuid, quantity: int >= 1 }> (>= 1)"
+        },
+        "usedByApp": false
+      },
+      "updateDelivery": {
+        "method": "PATCH",
+        "path": "/deliveries/{deliveryId}",
+        "body": "{ courierId?, customer?, items?, cancelReason? }",
+        "usedByApp": false
+      },
+      "rateDelivery": {
+        "method": "POST",
+        "path": "/deliveries/{deliveryId}/rating",
+        "body": { "score": "int 0–5", "comment": "string <= 500 | null" },
+        "usedByApp": "opcional — tela de avaliação do destinatário, aberta pelo entregador no aparelho após a entrega"
+      }
+    },
+    "models": {
+      "Delivery": {
+        "id": "uuid",
+        "courierId": "uuid",
+        "status": "'PENDING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'",
+        "attempts": "int",
+        "customer": { "name": "string", "phone": "string", "address": "string" },
+        "items": "Array<{ productId, productName, unitPriceCents, quantity }>",
+        "totalCents": "int",
+        "rating": "{ score: 0-5, comment: string|null, ratedAt: ISO } | null",
+        "receivedBy": "string | null",
+        "deliveredAt": "ISO | null",
+        "revision": "int",
+        "createdAt": "ISO",
+        "updatedAt": "ISO"
+      },
+      "statusMachine": {
+        "PENDING": ["OUT_FOR_DELIVERY", "CANCELLED"],
+        "OUT_FOR_DELIVERY": ["DELIVERED", "PENDING", "CANCELLED"],
+        "DELIVERED": [],
+        "CANCELLED": []
+      },
+      "eventToTransition": {
+        "OUT_FOR_DELIVERY": "PENDING -> OUT_FOR_DELIVERY",
+        "FAILED_ATTEMPT": "OUT_FOR_DELIVERY -> PENDING, incrementa attempts, grava lastFailureReason",
+        "DELIVERED": "OUT_FOR_DELIVERY -> DELIVERED, grava receivedBy e deliveredAt"
+      }
+    }
+  },
+
+  "syncEngine": {
+    "localSchema": {
+      "deliveries": "espelho do servidor: colunas do Delivery + server_revision + updated_at_server",
+      "outbox": "id (clientEventId uuid), delivery_id, type, occurred_at, reason, received_by, state ('PENDING'|'SENT'|'ACKED'|'REJECTED'), attempts, last_error, created_at",
+      "sync_state": "singleton: courier_id, cursor_version, last_snapshot_at, last_pull_at, last_push_at",
+      "conflicts": "client_event_id, delivery_id, code, server_delivery_json, seen_at, resolved_at"
+    },
+    "boot": [
+      "Se sync_state.cursor_version for nulo → rodar snapshot completo.",
+      "Snapshot: paginar por cursor até nextCursor = null; gravar todas as entregas; cursor_version = currentVersion da PRIMEIRA página.",
+      "Depois de todo snapshot, rodar imediatamente um ciclo de delta para pegar o que mudou durante a paginação."
+    ],
+    "pullLoop": {
+      "algorithm": [
+        "GET changes?sinceVersion={cursor}&limit=200",
+        "Se resyncRequired === true → apagar tabela espelho, zerar cursor, refazer snapshot. Não tentar convergir por delta.",
+        "Aplicar changes em uma transação: UPSERT grava/substitui a entrega; REMOVE apaga a linha local (saiu da carteira — cancelada ou reatribuída; não é exclusão do registro no servidor).",
+        "cursor_version = nextVersion — NUNCA currentVersion.",
+        "Se hasMore === true → repetir imediatamente."
+      ],
+      "criticalRule": "Avançar o cursor para currentVersion perde silenciosamente todas as mudanças entre nextVersion e currentVersion. Esse é o bug que o protocolo do servidor existe para evitar; o cliente não pode reintroduzi-lo.",
+      "invariant": "A transação que aplica o lote e a que grava o cursor são a MESMA. Nunca gravar o cursor antes de aplicar as mudanças."
+    },
+    "pushLoop": {
+      "algorithm": [
+        "Selecionar até 100 eventos com state='PENDING' ordenados por occurred_at.",
+        "POST events com o lote inteiro; marcar como SENT antes do envio (o clientEventId protege contra duplicata).",
+        "Casar results por índice do array (o mesmo clientEventId pode aparecer duas vezes no lote).",
+        "APPLIED e DUPLICATE → state='ACKED', remover da fila.",
+        "REJECTED → state='REJECTED', gravar code, aplicar o campo `delivery` do resultado no espelho local (é o estado atual autoritativo) e criar linha em `conflicts`.",
+        "Erro de rede / 5xx / 429 → voltar para PENDING e reagendar com backoff exponencial + jitter (teto 5min). Nunca descartar."
+      ],
+      "ordering": "Eventos da mesma entrega vão ordenados por occurredAt. O servidor reordena por occurredAt dentro de cada entrega, mas o cliente não deve depender disso para a UI.",
+      "invariant": "Nada sai da outbox sem um ACK do servidor. Kill do app durante o envio deixa o evento em SENT; no boot, SENT volta para PENDING — o reenvio devolve DUPLICATE, que é inofensivo."
+    },
+    "scheduling": {
+      "triggers": [
+        "app volta ao foreground",
+        "NetInfo reporta conexão recuperada (flush imediato da outbox)",
+        "a cada ação do entregador, tentativa oportunista de push",
+        "polling de 2min com o app em foreground",
+        "background fetch a cada 15min"
+      ],
+      "batteryRule": "Sem rede, não agendar nada — reagir ao evento de conectividade em vez de fazer polling cego."
+    },
+    "optimisticUi": {
+      "rule": "A ação do entregador grava (a) o evento na outbox e (b) a projeção do novo estado na linha local, na mesma transação. A UI reflete na hora.",
+      "reconciliation": "Um UPSERT vindo do delta sempre sobrescreve a projeção otimista. Um REJECTED substitui pelo `delivery` do resultado e abre o card de conflito."
+    },
+    "conflictUx": {
+      "DELIVERY_CANCELLED": "\"Esta entrega foi cancelada pela central às {hora}.\" — remover da lista do dia, mostrar em Resolvidos.",
+      "DELIVERY_REASSIGNED": "\"Esta entrega passou para outro entregador.\" — remover da carteira.",
+      "DELIVERY_ALREADY_FINALIZED": "\"Já registrada como entregue.\" — apenas informar.",
+      "INVALID_STATUS_TRANSITION": "\"A situação mudou enquanto você estava sem sinal.\" — mostrar o estado atual e o caminho válido.",
+      "DELIVERY_NOT_FOUND": "\"Entrega não existe mais.\" — remover e registrar no log de diagnóstico.",
+      "principle": "Conflito nunca é modal bloqueante no meio da rua. É um card na lista, agrupado, resolvível depois."
+    }
+  },
+
+  "screens": [
+    {
+      "id": "today",
+      "title": "Hoje",
+      "content": "Lista da carteira do entregador, agrupada por status: A sair (PENDING), Em rota (OUT_FOR_DELIVERY), Finalizadas (DELIVERED/CANCELLED, recolhidas).",
+      "card": "Nome do cliente, endereço em 2 linhas, quantidade de itens, total em R$, badge de status, contador de tentativas quando attempts > 0.",
+      "header": "Pílula de sincronização: estado (Sincronizado / X pendentes / Sem sinal), horário do último sync, toque abre a tela de Sincronização.",
+      "actions": "Swipe no card = ação primária do status (Sair para entrega / Registrar entrega). Pull-to-refresh força um ciclo de sync."
+    },
+    {
+      "id": "delivery-detail",
+      "title": "Detalhe da entrega",
+      "content": "Cliente + telefone (toque disca) + endereço (toque abre mapa), lista de itens com quantidade e subtotal, total, histórico de tentativas, avaliação se houver.",
+      "actions": "Botão primário conforme o status; 'Registrar tentativa sem sucesso' com motivo; 'Entregue' pede quem recebeu."
+    },
+    {
+      "id": "register-delivery",
+      "title": "Registrar entrega",
+      "content": "Campo 'Recebido por' (obrigatório, <= 120), hora ajustável (default agora), resumo dos itens.",
+      "behavior": "Confirmar grava offline e volta à lista com o card já em Entregue e um selo 'aguardando envio'."
+    },
+    {
+      "id": "failed-attempt",
+      "title": "Tentativa sem sucesso",
+      "content": "Motivos pré-definidos (Ausente, Endereço não localizado, Recusado, Acesso impedido) + campo livre <= 200."
+    },
+    {
+      "id": "rating",
+      "title": "Avaliação",
+      "content": "0 a 5 estrelas + comentário <= 500. Só disponível com status DELIVERED e sem avaliação prévia.",
+      "note": "Esta rota é online-only (POST direto). Sem rede, desabilitar com aviso claro em vez de enfileirar."
+    },
+    {
+      "id": "sync",
+      "title": "Sincronização",
+      "content": "Cursor atual, currentVersion do servidor, horário do último pull/push, fila pendente com estado por item, lista de conflitos não resolvidos.",
+      "actions": "'Sincronizar agora' e, escondido atrás de confirmação, 'Refazer carga completa' (descarta cursor e refaz snapshot)."
+    },
+    {
+      "id": "settings",
+      "title": "Ajustes",
+      "content": "URL da API, courierId, modo de diagnóstico (log das últimas 50 chamadas de sync), limpar dados locais."
+    }
+  ],
+
+  "offlineUx": {
+    "rules": [
+      "Nunca mostrar spinner de rede bloqueando conteúdo que já existe no banco local.",
+      "Estado de rede é informação de fundo, não alarme: faixa discreta, nunca toast repetido.",
+      "Toda ação gravada offline mostra selo 'aguardando envio' até o ACK; o selo some sozinho.",
+      "Zero botão desabilitado 'porque está offline', exceto na avaliação (rota online-only) — e com o motivo escrito.",
+      "Alvos de toque >= 48dp: o usuário está de pé, com uma mão, possivelmente de luva."
+    ]
+  },
+
+  "testing": {
+    "mustHave": [
+      "Cliente de referência em teste: aplica delta por nextVersion enquanto hasMore, e converge exatamente com o servidor após N mudanças.",
+      "Teste que quebra de propósito o cursor (avançar para currentVersion) e falha — prova que o teste de convergência tem valor.",
+      "Reenvio do mesmo lote devolve DUPLICATE e não duplica estado local.",
+      "Kill do app entre 'marcar SENT' e a resposta: no boot, o evento reenvia e converge.",
+      "resyncRequired dispara snapshot completo e limpa a tabela espelho.",
+      "REMOVE tira a entrega da carteira sem apagar histórico de conflitos."
+    ]
+  },
+
+  "theme": {
+    "name": "Asfalto",
+    "concept": "Legível sob sol de meio-dia e dentro de um prédio escuro. Base neutra fria (asfalto), um único âmbar de marca para ação, e cores de status que se distinguem por forma e rótulo, nunca só por matiz.",
+    "mode": "light e dark obrigatórios; dark é o default quando o sistema não informa",
+    "color": {
+      "light": {
+        "bg": "#F7F8FA",
+        "surface": "#FFFFFF",
+        "surfaceAlt": "#EEF1F5",
+        "border": "#D8DEE7",
+        "textPrimary": "#12171F",
+        "textSecondary": "#5A6675",
+        "textDisabled": "#98A2B1",
+        "brand": "#C2610A",
+        "brandContrast": "#FFFFFF",
+        "brandSoft": "#FDF0E1",
+        "focus": "#0B6BCB"
+      },
+      "dark": {
+        "bg": "#0E1218",
+        "surface": "#161C25",
+        "surfaceAlt": "#1E2632",
+        "border": "#2C3643",
+        "textPrimary": "#EDF1F6",
+        "textSecondary": "#9BA8B8",
+        "textDisabled": "#5D6875",
+        "brand": "#F2A03D",
+        "brandContrast": "#1A1204",
+        "brandSoft": "#2A1F10",
+        "focus": "#61A8FF"
+      },
+      "status": {
+        "pending": { "light": "#5A6675", "dark": "#9BA8B8", "label": "A sair", "shape": "contorno" },
+        "outForDelivery": { "light": "#0B6BCB", "dark": "#61A8FF", "label": "Em rota", "shape": "preenchido" },
+        "delivered": { "light": "#1F7A4C", "dark": "#4FBF87", "label": "Entregue", "shape": "preenchido + check" },
+        "cancelled": { "light": "#B3261E", "dark": "#F2867E", "label": "Cancelada", "shape": "contorno tracejado" },
+        "attempt": { "light": "#8A5A00", "dark": "#E0A93C", "label": "Tentativa", "shape": "badge numérico" }
+      },
+      "sync": {
+        "synced": { "light": "#1F7A4C", "dark": "#4FBF87" },
+        "pending": { "light": "#8A5A00", "dark": "#E0A93C" },
+        "offline": { "light": "#5A6675", "dark": "#9BA8B8" },
+        "conflict": { "light": "#B3261E", "dark": "#F2867E" }
+      },
+      "rules": [
+        "Contraste mínimo 4.5:1 para texto e 3:1 para ícones e bordas de estado, nos dois modos.",
+        "Status nunca é comunicado só por cor: sempre cor + forma + rótulo textual.",
+        "Âmbar é exclusivo da ação primária. Se tudo é âmbar, nada é.",
+        "Vermelho só para destrutivo e conflito — nunca para 'offline', que é estado normal de operação."
+      ]
+    },
+    "typography": {
+      "family": { "ui": "Inter", "numeric": "Inter (tabular-nums para valores e contadores)" },
+      "scale": {
+        "display": { "size": 32, "lineHeight": 38, "weight": 700 },
+        "title": { "size": 22, "lineHeight": 28, "weight": 650 },
+        "sectionHeader": { "size": 15, "lineHeight": 20, "weight": 600, "letterSpacing": 0.4, "transform": "uppercase" },
+        "body": { "size": 17, "lineHeight": 24, "weight": 400 },
+        "bodyStrong": { "size": 17, "lineHeight": 24, "weight": 600 },
+        "caption": { "size": 13, "lineHeight": 18, "weight": 500 },
+        "mono": { "size": 13, "lineHeight": 18, "weight": 500, "use": "versões, cursores e ids na tela de Sincronização" }
+      },
+      "rule": "Endereço e nome do cliente nunca abaixo de 17pt — são lidos em movimento."
+    },
+    "space": { "unit": 4, "scale": [4, 8, 12, 16, 20, 24, 32, 48], "screenGutter": 16, "cardPadding": 16, "listGap": 12 },
+    "radius": { "card": 14, "button": 12, "pill": 999, "sheet": 20 },
+    "elevation": {
+      "rule": "Sombra quase nula no dark (usar surfaceAlt para separar). No light, sombra de 1 nível só em cards e sheet.",
+      "card": "0 1px 2px rgba(18,23,31,0.08)",
+      "sheet": "0 -8px 24px rgba(18,23,31,0.16)"
+    },
+    "motion": {
+      "durations": { "instant": 80, "fast": 140, "base": 220, "sheet": 280 },
+      "easing": "cubic-bezier(0.2, 0, 0, 1)",
+      "rules": [
+        "Confirmação de ação offline anima em 140ms — precisa parecer instantânea porque é.",
+        "Nada de animação de loading para dados locais.",
+        "Respeitar prefers-reduced-motion: trocar por fade simples."
+      ]
+    },
+    "iconography": { "set": "Lucide", "strokeWidth": 2, "size": { "inline": 18, "action": 24, "empty": 40 } },
+    "components": {
+      "syncPill": "Altura 32, raio pill, ícone 18 + rótulo curto. Estados: Sincronizado / {n} pendentes / Sem sinal / {n} conflitos.",
+      "deliveryCard": "surface, raio 14, borda 1px, barra vertical de 3px na cor do status na borda esquerda.",
+      "primaryButton": "Altura 52, largura total, brand, texto bodyStrong em brandContrast.",
+      "pendingBadge": "Pílula surfaceAlt com ponto âmbar; texto 'aguardando envio' em caption.",
+      "conflictCard": "Borda 1px na cor de conflito, fundo surface, ação 'Entendi' e 'Ver entrega' — nunca bloqueia a lista."
+    },
+    "accessibility": [
+      "Suportar fonte do sistema até 200% sem corte — cards crescem, texto não trunca em endereço.",
+      "Rótulo acessível em todo ícone-ação.",
+      "Ordem de foco segue a leitura visual; swipe sempre tem equivalente em botão."
+    ]
+  },
+
+  "deliverables": [
+    "App rodando com snapshot + delta + outbox funcionando contra http://localhost:3333",
+    "Camada de sync isolada, testável sem UI",
+    "Suíte de testes cobrindo os cenários de testing.mustHave",
+    "Tema implementado como tokens (um arquivo), sem cor hardcoded em componente",
+    "README do app com o diagrama do ciclo de sync e a regra do cursor"
+  ]
+}
